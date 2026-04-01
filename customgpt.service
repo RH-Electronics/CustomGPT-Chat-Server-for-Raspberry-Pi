@@ -1,0 +1,15 @@
+[Unit]
+Description=CustomGPT Chat Server
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/customgpt-pi
+Environment="PATH=/home/pi/customgpt-pi/venv/bin"
+ExecStart=/home/pi/customgpt-pi/venv/bin/python app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
