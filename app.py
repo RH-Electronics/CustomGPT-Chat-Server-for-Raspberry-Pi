@@ -350,6 +350,11 @@ def send_message(chat_id):
         (chat_id,)
     ).fetchall()
     
+    # Sliding window: keep only last N messages to control costs and prevent context overflow
+    MAX_HISTORY_MESSAGES = 50
+    if len(history) > MAX_HISTORY_MESSAGES:
+        history = history[-MAX_HISTORY_MESSAGES:]
+    
     # Save user message
     now = datetime.now().isoformat()
     conn.execute(
