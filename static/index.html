@@ -274,6 +274,106 @@
             border-bottom-left-radius: 4px;
         }
 
+        .message-wrapper {
+            display: flex;
+            flex-direction: column;
+            max-width: 85%;
+            position: relative;
+        }
+
+        .message-wrapper.user {
+            align-self: flex-end;
+            align-items: flex-end;
+        }
+
+        .message-wrapper.assistant {
+            align-self: flex-start;
+            align-items: flex-start;
+        }
+
+        .message-wrapper .message {
+            max-width: 100%;
+        }
+
+        .message-actions {
+            display: none;
+            gap: 4px;
+            margin-top: 6px;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+
+        .message-wrapper:hover .message-actions,
+        .message-wrapper .message-actions.visible {
+            display: flex;
+            opacity: 1;
+        }
+
+        .message-action-btn {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px 10px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.15s;
+        }
+
+        .message-action-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent);
+            color: var(--text-primary);
+        }
+
+        .edit-input-container {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            width: 100%;
+        }
+
+        .edit-textarea {
+            flex: 1;
+            padding: 10px 14px;
+            background: var(--bg-deep);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .edit-textarea:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px var(--accent-soft);
+        }
+
+        .edit-btn {
+            padding: 8px 14px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.15s;
+        }
+
+        .edit-btn.save {
+            background: var(--accent);
+            color: white;
+        }
+
+        .edit-btn.cancel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
         .message pre {
             background: var(--bg-deep);
             padding: 12px;
@@ -1140,16 +1240,133 @@
                 return;
             }
 
-            container.innerHTML = messages.map(msg => `
-                <div class="message ${msg.role}">
-                    ${formatMessage(msg.content)}
+            // Store messages for edit functionality
+            window.chatMessages = messages;
+
+            container.innerHTML = messages.map((msg, idx) => {
+                const isLast = idx === messages.length - 1;
+                const isSecondLast = idx === messages.length - 2;
+                const showEdit = msg.role === 'user' && isSecondLast && messages.length >= 2;
+                const showRegen = msg.role === 'assistant' && isLast;
+
+                return `
+                <div class="message-wrapper ${msg.role}">
+                    <div class="message ${msg.role}" data-idx="${idx}">
+                        ${formatMessage(msg.content)}
+                    </div>
+                    ${showEdit ? `
+                    <div class="message-actions visible">
+                        <button class="message-action-btn" onclick="startEdit(${idx})">
+                            ✏️ Edit
+                        </button>
+                    </div>
+                    ` : ''}
+                    ${showRegen ? `
+                    <div class="message-actions visible">
+                        <button class="message-action-btn" onclick="regenerateResponse()">
+                            🔄 Regenerate
+                        </button>
+                    </div>
+                    ` : ''}
                 </div>
-            `).join('');
+                `;
+            }).join('');
 
             container.scrollTop = container.scrollHeight;
         }
 
+        // Start editing a message
+        function startEdit(idx) {
+            const messages = window.chatMessages;
+            if (!messages || !messages[idx]) return;
+
+            const originalContent = messages[idx].content;
+            const wrapper = document.querySelector(`.message[data-idx="${idx}"]`).parentElement;
+            const msgEl = wrapper.querySelector('.message');
+            const actionsEl = wrapper.querySelector('.message-actions');
+
+            // Hide original content and show edit form
+            msgEl.style.display = 'none';
+            actionsEl.style.display = 'none';
+
+            const editForm = document.createElement('div');
+            editForm.className = 'edit-form';
+            editForm.innerHTML = `
+                <textarea class="edit-textarea" id="edit-textarea-${idx}">${escapeHtml(originalContent)}</textarea>
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                    <button class="edit-btn save" onclick="saveEdit(${idx})">Save & Send</button>
+                    <button class="edit-btn cancel" onclick="cancelEdit(${idx})">Cancel</button>
+                </div>
+            `;
+            wrapper.appendChild(editForm);
+
+            // Focus textarea
+            const textarea = document.getElementById(`edit-textarea-${idx}`);
+            textarea.focus();
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+        }
+
+        // Cancel edit
+        function cancelEdit(idx) {
+            const wrapper = document.querySelector(`.message[data-idx="${idx}"]`).parentElement;
+            const msgEl = wrapper.querySelector('.message');
+            const actionsEl = wrapper.querySelector('.message-actions');
+            const editForm = wrapper.querySelector('.edit-form');
+
+            if (editForm) editForm.remove();
+            msgEl.style.display = '';
+            actionsEl.style.display = '';
+        }
+
+        // Save edit and regenerate
+        async function saveEdit(idx) {
+            const textarea = document.getElementById(`edit-textarea-${idx}`);
+            const newContent = textarea.value.trim();
+            if (!newContent) return;
+
+            // Delete last 2 messages (user + assistant)
+            try {
+                await fetch(API + '/api/chats/' + currentChatId + '/delete-last', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ count: 2 })
+                });
+
+                // Send edited message
+                document.getElementById('message-input').value = newContent;
+                await sendMessage();
+            } catch (e) {
+                console.error('Failed to save edit:', e);
+                alert('Failed to save edit: ' + e.message);
+            }
+        }
+
+        // Regenerate last response
+        async function regenerateResponse() {
+            if (!window.chatMessages || window.chatMessages.length < 2) return;
+
+            const lastUserMsg = window.chatMessages[window.chatMessages.length - 2];
+            if (lastUserMsg.role !== 'user') return;
+
+            try {
+                // Delete last assistant message
+                await fetch(API + '/api/chats/' + currentChatId + '/delete-last', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ count: 1 })
+                });
+
+                // Re-send the user message
+                document.getElementById('message-input').value = lastUserMsg.content;
+                await sendMessage();
+            } catch (e) {
+                console.error('Failed to regenerate:', e);
+                alert('Failed to regenerate: ' + e.message);
+            }
+        }
+
         function clearMessages() {
+            window.chatMessages = [];
             document.getElementById('messages').innerHTML = `
                 <div class="welcome">
                     <div class="welcome-icon">🤖</div>
@@ -1268,6 +1485,9 @@
                             }
                         });
                 }
+
+                // Reload chat to show action buttons properly
+                await loadChat(currentChatId);
 
             } catch (e) {
                 document.getElementById(typingId).innerHTML = `<span style="color: var(--accent);">Error: ${escapeHtml(e.message)}</span>`;
