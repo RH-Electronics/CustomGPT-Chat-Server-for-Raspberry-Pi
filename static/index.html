@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CustomGPT</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #0a0a0f;
+            --bg-main: #12121a;
+            --bg-panel: #1a1a24;
+            --bg-hover: #252532;
+            --bg-active: #2d2d3d;
+            --border: #2a2a3a;
+            --border-glow: #ff2d5522;
+            --text-primary: #e8e8f0;
+            --text-secondary: #8888a0;
+            --text-muted: #555566;
+            --accent: #ff2d55;
+            --accent-glow: #ff2d5540;
+            --accent-soft: #ff2d5520;
+            --success: #00d68f;
+            --warning: #ffaa00;
+            --user-msg: #1e3a5f;
+            --ai-msg: #1a1a24;
+            --scrollbar: #333344;
+            --scrollbar-hover: #444455;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--scrollbar);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--scrollbar-hover);
+        }
+
+        /* Layout */
+        .app {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-main);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            font-size: 18px;
+            color: var(--accent);
+            text-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .new-chat-btn {
+            width: 100%;
+            padding: 12px 16px;
+            margin: 12px 16px;
+            width: calc(100% - 32px);
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 20px var(--accent-glow);
+        }
+
+        .new-chat-btn:hover {
+            background: #ff4d6d;
+            transform: translateY(-1px);
+        }
+
+        .chat-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .chat-item {
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.15s;
+            position: relative;
+        }
+
+        .chat-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .chat-item.active {
+            background: var(--bg-active);
+            border-left: 3px solid var(--accent);
+        }
+
+        .chat-item-title {
+            flex: 1;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-item-delete {
+            opacity: 0;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            transition: all 0.15s;
+        }
+
+        .chat-item:hover .chat-item-delete {
+            opacity: 1;
+        }
+
+        .chat-item-delete:hover {
+            color: var(--accent);
+        }
+
+        .sidebar-footer {
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .settings-btn {
+            width: 100%;
+            padding: 10px 16px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.15s;
+        }
+
+        .settings-btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent);
+            color: var(--text-primary);
+        }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-deep);
+            position: relative;
+        }
+
+        .main-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: var(--bg-main);
+        }
+
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .chat-title {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .model-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            padding: 4px 10px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            border-radius: 12px;
+            margin-left: auto;
+        }
+
+        /* Messages */
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 14px 18px;
+            border-radius: 16px;
+            line-height: 1.6;
+            font-size: 15px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message pre {
+            background: var(--bg-deep);
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 8px 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+
+        .message code {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-deep);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 16px 18px;
+        }
+
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 16px 24px 24px;
+            background: var(--bg-main);
+            border-top: 1px solid var(--border);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 12px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        #message-input {
+            width: 100%;
+            padding: 14px 18px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 15px;
+            font-family: inherit;
+            resize: none;
+            min-height: 52px;
+            max-height: 200px;
+            transition: border-color 0.2s;
+        }
+
+        #message-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+
+        #message-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .send-btn {
+            padding: 14px 24px;
+            background: var(--accent);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            background: #ff4d6d;
+            transform: translateY(-1px);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Settings Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: var(--bg-main);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.95);
+            transition: transform 0.2s;
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--accent);
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 12px;
+        }
+
+        .modal-tab {
+            padding: 8px 16px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.15s;
+        }
+
+        .modal-tab:hover {
+            color: var(--text-primary);
+            background: var(--bg-hover);
+        }
+
+        .modal-tab.active {
+            color: var(--accent);
+            background: var(--accent-soft);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-group input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 6px;
+            background: var(--bg-active);
+            border-radius: 3px;
+            border: none;
+            padding: 0;
+        }
+
+        .slider-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 8px var(--accent-glow);
+        }
+
+        .slider-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            min-width: 45px;
+            text-align: right;
+            color: var(--text-secondary);
+        }
+
+        /* Context Files */
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .file-item.selected {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+        }
+
+        .file-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+        }
+
+        .file-name {
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .file-size {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .file-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px;
+            font-size: 16px;
+        }
+
+        .file-btn:hover {
+            color: var(--accent);
+        }
+
+        .add-file-form {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .add-file-form input {
+            flex: 1;
+        }
+
+        .add-file-btn {
+            padding: 10px 16px;
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        /* Save button */
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .btn-secondary {
+            padding: 10px 20px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            padding: 10px 20px;
+            background: var(--accent);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .btn-primary:hover {
+            background: #ff4d6d;
+        }
+
+        /* Welcome Screen */
+        .welcome {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .welcome-icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+            opacity: 0.8;
+        }
+
+        .welcome h1 {
+            font-size: 28px;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+
+        .welcome p {
+            color: var(--text-secondary);
+            max-width: 400px;
+            line-height: 1.6;
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100%;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 99;
+            }
+
+            .sidebar-overlay.active {
+                display: block;
+            }
+
+            .message {
+                max-width: 95%;
+            }
+
+            .input-container {
+                flex-direction: column;
+            }
+
+            .send-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* Status indicator */
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        .status-dot.error {
+            background: var(--accent);
+        }
+
+        /* Empty state */
+        .empty-chats {
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .empty-chats-icon {
+            font-size: 48px;
+            opacity: 0.5;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar Overlay (mobile) -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="logo">⚡ CustomGPT</span>
+            </div>
+            
+            <button class="new-chat-btn" onclick="createNewChat()">
+                <span>+</span> New Chat
+            </button>
+
+            <div class="chat-list" id="chat-list">
+                <!-- Chats will be loaded here -->
+            </div>
+
+            <div class="sidebar-footer">
+                <button class="settings-btn" onclick="openSettings()">
+                    <span>⚙️</span> Settings
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main">
+            <header class="main-header">
+                <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+                <span class="chat-title" id="chat-title">CustomGPT</span>
+                <span class="model-badge" id="model-badge">gpt-4.1</span>
+            </header>
+
+            <div class="messages" id="messages">
+                <div class="welcome">
+                    <div class="welcome-icon">🤖</div>
+                    <h1>Welcome to CustomGPT</h1>
+                    <p>Your local AI assistant with full control over prompts, context files, and generation parameters.</p>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <textarea 
+                            id="message-input" 
+                            placeholder="Type your message..." 
+                            rows="1"
+                            onkeydown="handleKeyDown(event)"
+                            oninput="autoResize(this)"
+                        ></textarea>
+                    </div>
+                    <button class="send-btn" id="send-btn" onclick="sendMessage()">
+                        Send →
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>⚙️ Settings</h2>
+                <button class="modal-close" onclick="closeSettings()">×</button>
+            </div>
+
+            <div class="modal-body">
+                <div class="modal-tabs">
+                    <button class="modal-tab active" data-tab="general">General</button>
+                    <button class="modal-tab" data-tab="params">Parameters</button>
+                    <button class="modal-tab" data-tab="context">Context Files</button>
+                </div>
+
+                <!-- General Tab -->
+                <div class="tab-content active" id="tab-general">
+                    <div class="form-group">
+                        <label>OpenAI API Key</label>
+                        <input type="password" id="cfg-api-key" placeholder="sk-...">
+                        <div class="form-hint">Your API key is stored locally on the Pi</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Model</label>
+                        <select id="cfg-model">
+                            <option value="gpt-4.1">GPT-4.1</option>
+                            <option value="gpt-4.1-mini">GPT-4.1 Mini</option>
+                            <option value="gpt-4.1-nano">GPT-4.1 Nano</option>
+                            <option value="gpt-4o">GPT-4o</option>
+                            <option value="gpt-4o-mini">GPT-4o Mini</option>
+                            <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>System Prompt</label>
+                        <textarea id="cfg-system-prompt" placeholder="You are a helpful assistant..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Parameters Tab -->
+                <div class="tab-content" id="tab-params">
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <div class="slider-group">
+                            <input type="range" id="cfg-temperature" min="0" max="2" step="0.1" value="0.7">
+                            <span class="slider-value" id="val-temperature">0.7</span>
+                        </div>
+                        <div class="form-hint">Higher = more creative, Lower = more focused</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Top P</label>
+                        <div class="slider-group">
+                            <input type="range" id="cfg-top-p" min="0" max="1" step="0.05" value="1">
+                            <span class="slider-value" id="val-top-p">1.0</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Max Tokens</label>
+                        <input type="number" id="cfg-max-tokens" min="100" max="128000" value="4096">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Presence Penalty</label>
+                        <div class="slider-group">
+                            <input type="range" id="cfg-presence-penalty" min="-2" max="2" step="0.1" value="0">
+                            <span class="slider-value" id="val-presence-penalty">0.0</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Frequency Penalty</label>
+                        <div class="slider-group">
+                            <input type="range" id="cfg-frequency-penalty" min="-2" max="2" step="0.1" value="0">
+                            <span class="slider-value" id="val-frequency-penalty">0.0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Context Files Tab -->
+                <div class="tab-content" id="tab-context">
+                    <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 14px;">
+                        Add .txt files to include as context in every conversation. 
+                        Files are stored in <code>/contexts/</code> on your Pi.
+                    </p>
+
+                    <div class="file-list" id="context-file-list">
+                        <!-- Files loaded dynamically -->
+                    </div>
+
+                    <div class="add-file-form">
+                        <input type="text" id="new-file-name" placeholder="filename.txt">
+                        <button class="add-file-btn" onclick="createContextFile()">+ Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeSettings()">Cancel</button>
+                <button class="btn-primary" onclick="saveSettings()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Editor Modal -->
+    <div class="modal-overlay" id="file-editor-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📄 <span id="file-editor-title">Edit File</span></h2>
+                <button class="modal-close" onclick="closeFileEditor()">×</button>
+            </div>
+            <div class="modal-body">
+                <textarea id="file-editor-content" style="min-height: 300px; font-family: 'JetBrains Mono', monospace;"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeFileEditor()">Cancel</button>
+                <button class="btn-primary" onclick="saveFileContent()">Save File</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let currentChatId = null;
+        let config = {};
+        let contextFiles = [];
+        let editingFile = null;
+
+        // API base
+        const API = '';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConfig();
+            loadChats();
+            setupTabs();
+            setupSliders();
+        });
+
+        // Tab switching
+        function setupTabs() {
+            document.querySelectorAll('.modal-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+                });
+            });
+        }
+
+        // Slider value display
+        function setupSliders() {
+            const sliders = ['temperature', 'top-p', 'presence-penalty', 'frequency-penalty'];
+            sliders.forEach(id => {
+                const slider = document.getElementById('cfg-' + id);
+                const display = document.getElementById('val-' + id);
+                if (slider && display) {
+                    slider.addEventListener('input', () => {
+                        display.textContent = parseFloat(slider.value).toFixed(1);
+                    });
+                }
+            });
+        }
+
+        // Load config
+        async function loadConfig() {
+            try {
+                const res = await fetch(API + '/api/config');
+                config = await res.json();
+                updateConfigUI();
+                document.getElementById('model-badge').textContent = config.model || 'gpt-4.1';
+            } catch (e) {
+                console.error('Failed to load config:', e);
+            }
+        }
+
+        function updateConfigUI() {
+            document.getElementById('cfg-api-key').value = config.api_key_set ? config.api_key : '';
+            document.getElementById('cfg-model').value = config.model || 'gpt-4.1';
+            document.getElementById('cfg-system-prompt').value = config.system_prompt || '';
+            document.getElementById('cfg-temperature').value = config.temperature || 0.7;
+            document.getElementById('val-temperature').textContent = (config.temperature || 0.7).toFixed(1);
+            document.getElementById('cfg-top-p').value = config.top_p || 1.0;
+            document.getElementById('val-top-p').textContent = (config.top_p || 1.0).toFixed(1);
+            document.getElementById('cfg-max-tokens').value = config.max_tokens || 4096;
+            document.getElementById('cfg-presence-penalty').value = config.presence_penalty || 0;
+            document.getElementById('val-presence-penalty').textContent = (config.presence_penalty || 0).toFixed(1);
+            document.getElementById('cfg-frequency-penalty').value = config.frequency_penalty || 0;
+            document.getElementById('val-frequency-penalty').textContent = (config.frequency_penalty || 0).toFixed(1);
+        }
+
+        // Load chats
+        async function loadChats() {
+            try {
+                const res = await fetch(API + '/api/chats');
+                const chats = await res.json();
+                renderChatList(chats);
+            } catch (e) {
+                console.error('Failed to load chats:', e);
+            }
+        }
+
+        function renderChatList(chats) {
+            const list = document.getElementById('chat-list');
+            if (chats.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-chats">
+                        <div class="empty-chats-icon">💬</div>
+                        <p>No chats yet</p>
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = chats.map(chat => `
+                <div class="chat-item ${chat.id === currentChatId ? 'active' : ''}" 
+                     onclick="loadChat('${chat.id}')">
+                    <span class="chat-item-title">${escapeHtml(chat.title)}</span>
+                    <button class="chat-item-delete" onclick="event.stopPropagation(); deleteChat('${chat.id}')">🗑️</button>
+                </div>
+            `).join('');
+        }
+
+        // Create new chat
+        async function createNewChat() {
+            try {
+                const res = await fetch(API + '/api/chats', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: 'New Chat' })
+                });
+                const chat = await res.json();
+                currentChatId = chat.id;
+                loadChats();
+                clearMessages();
+                document.getElementById('chat-title').textContent = chat.title;
+                closeSidebar();
+            } catch (e) {
+                console.error('Failed to create chat:', e);
+            }
+        }
+
+        // Load chat
+        async function loadChat(chatId) {
+            try {
+                const res = await fetch(API + '/api/chats/' + chatId);
+                const data = await res.json();
+                currentChatId = chatId;
+                document.getElementById('chat-title').textContent = data.chat.title;
+                renderMessages(data.messages);
+                loadChats();
+                closeSidebar();
+            } catch (e) {
+                console.error('Failed to load chat:', e);
+            }
+        }
+
+        // Delete chat
+        async function deleteChat(chatId) {
+            if (!confirm('Delete this chat?')) return;
+            try {
+                await fetch(API + '/api/chats/' + chatId, { method: 'DELETE' });
+                if (currentChatId === chatId) {
+                    currentChatId = null;
+                    clearMessages();
+                    document.getElementById('chat-title').textContent = 'CustomGPT';
+                }
+                loadChats();
+            } catch (e) {
+                console.error('Failed to delete chat:', e);
+            }
+        }
+
+        // Render messages
+        function renderMessages(messages) {
+            const container = document.getElementById('messages');
+            if (messages.length === 0) {
+                container.innerHTML = `
+                    <div class="welcome">
+                        <div class="welcome-icon">💬</div>
+                        <h1>Start a conversation</h1>
+                        <p>Type your message below to begin chatting.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = messages.map(msg => `
+                <div class="message ${msg.role}">
+                    ${formatMessage(msg.content)}
+                </div>
+            `).join('');
+
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function clearMessages() {
+            document.getElementById('messages').innerHTML = `
+                <div class="welcome">
+                    <div class="welcome-icon">🤖</div>
+                    <h1>Welcome to CustomGPT</h1>
+                    <p>Your local AI assistant with full control over prompts, context files, and generation parameters.</p>
+                </div>
+            `;
+        }
+
+        // Format message with markdown-like syntax
+        function formatMessage(text) {
+            // Code blocks
+            text = text.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+            // Inline code
+            text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+            // Bold
+            text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            // Italic
+            text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            // Line breaks
+            text = text.replace(/\n/g, '<br>');
+            return text;
+        }
+
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            // Create chat if needed
+            if (!currentChatId) {
+                const res = await fetch(API + '/api/chats', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: 'New Chat' })
+                });
+                const chat = await res.json();
+                currentChatId = chat.id;
+                document.getElementById('chat-title').textContent = chat.title;
+                loadChats();
+            }
+
+            // Clear welcome if present
+            const msgContainer = document.getElementById('messages');
+            if (msgContainer.querySelector('.welcome')) {
+                msgContainer.innerHTML = '';
+            }
+
+            // Add user message
+            msgContainer.innerHTML += `
+                <div class="message user">${formatMessage(escapeHtml(message))}</div>
+            `;
+            input.value = '';
+            autoResize(input);
+            msgContainer.scrollTop = msgContainer.scrollHeight;
+
+            // Add typing indicator
+            const typingId = 'typing-' + Date.now();
+            msgContainer.innerHTML += `
+                <div class="message assistant" id="${typingId}">
+                    <div class="typing-indicator">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+            `;
+            msgContainer.scrollTop = msgContainer.scrollHeight;
+
+            // Disable send button
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.disabled = true;
+
+            try {
+                const response = await fetch(API + '/api/chats/' + currentChatId + '/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullResponse = '';
+                let typingEl = document.getElementById(typingId);
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const text = decoder.decode(value);
+                    const lines = text.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                if (data.content) {
+                                    fullResponse += data.content;
+                                    typingEl.innerHTML = formatMessage(fullResponse);
+                                    msgContainer.scrollTop = msgContainer.scrollHeight;
+                                } else if (data.error) {
+                                    typingEl.innerHTML = `<span style="color: var(--accent);">Error: ${escapeHtml(data.error)}</span>`;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+
+                // Auto-title after first message
+                if (msgContainer.querySelectorAll('.message.user').length === 1) {
+                    fetch(API + '/api/chats/' + currentChatId + '/auto-title', { method: 'POST' })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.title) {
+                                document.getElementById('chat-title').textContent = data.title;
+                                loadChats();
+                            }
+                        });
+                }
+
+            } catch (e) {
+                document.getElementById(typingId).innerHTML = `<span style="color: var(--accent);">Error: ${escapeHtml(e.message)}</span>`;
+            }
+
+            sendBtn.disabled = false;
+        }
+
+        // Handle Enter key
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // Auto-resize textarea
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+        }
+
+        // Settings modal
+        function openSettings() {
+            document.getElementById('settings-modal').classList.add('active');
+            loadContextFiles();
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.remove('active');
+        }
+
+        async function saveSettings() {
+            const newConfig = {
+                api_key: document.getElementById('cfg-api-key').value,
+                model: document.getElementById('cfg-model').value,
+                system_prompt: document.getElementById('cfg-system-prompt').value,
+                temperature: parseFloat(document.getElementById('cfg-temperature').value),
+                top_p: parseFloat(document.getElementById('cfg-top-p').value),
+                max_tokens: parseInt(document.getElementById('cfg-max-tokens').value),
+                presence_penalty: parseFloat(document.getElementById('cfg-presence-penalty').value),
+                frequency_penalty: parseFloat(document.getElementById('cfg-frequency-penalty').value),
+                context_files: getSelectedContextFiles()
+            };
+
+            try {
+                await fetch(API + '/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newConfig)
+                });
+                document.getElementById('model-badge').textContent = newConfig.model;
+                closeSettings();
+                loadConfig();
+            } catch (e) {
+                alert('Failed to save settings: ' + e.message);
+            }
+        }
+
+        // Context files
+        async function loadContextFiles() {
+            try {
+                const res = await fetch(API + '/api/context-files');
+                contextFiles = await res.json();
+                renderContextFiles();
+            } catch (e) {
+                console.error('Failed to load context files:', e);
+            }
+        }
+
+        function renderContextFiles() {
+            const list = document.getElementById('context-file-list');
+            const selected = config.context_files || [];
+
+            if (contextFiles.length === 0) {
+                list.innerHTML = '<p style="color: var(--text-muted); font-size: 14px;">No context files yet. Create one below.</p>';
+                return;
+            }
+
+            list.innerHTML = contextFiles.map(file => `
+                <div class="file-item ${selected.includes(file.name) ? 'selected' : ''}">
+                    <input type="checkbox" class="file-checkbox" 
+                           data-filename="${file.name}"
+                           ${selected.includes(file.name) ? 'checked' : ''}>
+                    <span class="file-name">${escapeHtml(file.name)}</span>
+                    <span class="file-size">${formatFileSize(file.size)}</span>
+                    <div class="file-actions">
+                        <button class="file-btn" onclick="editContextFile('${file.name}')" title="Edit">✏️</button>
+                        <button class="file-btn" onclick="deleteContextFile('${file.name}')" title="Delete">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getSelectedContextFiles() {
+            const checkboxes = document.querySelectorAll('.file-checkbox:checked');
+            return Array.from(checkboxes).map(cb => cb.dataset.filename);
+        }
+
+        async function createContextFile() {
+            const nameInput = document.getElementById('new-file-name');
+            let name = nameInput.value.trim();
+            if (!name) return;
+
+            if (!name.endsWith('.txt')) name += '.txt';
+
+            try {
+                await fetch(API + '/api/context-files/' + name, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: '' })
+                });
+                nameInput.value = '';
+                loadContextFiles();
+                editContextFile(name);
+            } catch (e) {
+                alert('Failed to create file: ' + e.message);
+            }
+        }
+
+        async function editContextFile(filename) {
+            editingFile = filename;
+            try {
+                const res = await fetch(API + '/api/context-files/' + filename);
+                const data = await res.json();
+                document.getElementById('file-editor-title').textContent = filename;
+                document.getElementById('file-editor-content').value = data.content;
+                document.getElementById('file-editor-modal').classList.add('active');
+            } catch (e) {
+                alert('Failed to load file: ' + e.message);
+            }
+        }
+
+        function closeFileEditor() {
+            document.getElementById('file-editor-modal').classList.remove('active');
+            editingFile = null;
+        }
+
+        async function saveFileContent() {
+            if (!editingFile) return;
+            const content = document.getElementById('file-editor-content').value;
+
+            try {
+                await fetch(API + '/api/context-files/' + editingFile, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content })
+                });
+                closeFileEditor();
+                loadContextFiles();
+            } catch (e) {
+                alert('Failed to save file: ' + e.message);
+            }
+        }
+
+        async function deleteContextFile(filename) {
+            if (!confirm('Delete ' + filename + '?')) return;
+            try {
+                await fetch(API + '/api/context-files/' + filename, { method: 'DELETE' });
+                loadContextFiles();
+            } catch (e) {
+                alert('Failed to delete file: ' + e.message);
+            }
+        }
+
+        // Sidebar toggle (mobile)
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebar-overlay').classList.toggle('active');
+        }
+
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('sidebar-overlay').classList.remove('active');
+        }
+
+        document.getElementById('sidebar-overlay').addEventListener('click', closeSidebar);
+
+        // Utilities
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+    </script>
+</body>
+</html>
