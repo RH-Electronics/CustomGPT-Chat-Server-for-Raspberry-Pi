@@ -287,6 +287,28 @@ def delete_chat(chat_id):
     conn.close()
     return jsonify({"status": "ok"})
 
+@app.route('/api/chats/<chat_id>/delete-last', methods=['POST'])
+def delete_last_messages(chat_id):
+    """Delete last N messages (for edit/regenerate)."""
+    count = request.json.get('count', 1)  # How many messages to delete
+    
+    conn = get_db()
+    
+    # Get IDs of last N messages
+    last_msgs = conn.execute(
+        'SELECT id FROM messages WHERE chat_id = ? ORDER BY id DESC LIMIT ?',
+        (chat_id, count)
+    ).fetchall()
+    
+    if last_msgs:
+        ids = [msg['id'] for msg in last_msgs]
+        placeholders = ','.join('?' * len(ids))
+        conn.execute(f'DELETE FROM messages WHERE id IN ({placeholders})', ids)
+        conn.commit()
+    
+    conn.close()
+    return jsonify({"status": "ok", "deleted": len(last_msgs)})
+
 @app.route('/api/chats/<chat_id>/title', methods=['PUT'])
 def update_chat_title(chat_id):
     """Update chat title."""
