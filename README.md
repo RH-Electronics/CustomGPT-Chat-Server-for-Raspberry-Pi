@@ -1,26 +1,29 @@
 # CustomGPT Chat Server for Raspberry Pi 🤖
 
-**Multi-provider AI chat interface** with full local control.
+**Multi-provider AI chat interface** with semantic memory and full local control.
 
 ## Supported Providers
 
 | Provider | Models | Notes |
 |----------|--------|-------|
-| **OpenAI** | GPT-4.x, GPT-5.x, o-series | Full reasoning support for GPT-5.4 |
+| **OpenAI** | GPT-4.x, GPT-5.x, o-series | Full reasoning support |
 | **Claude** | Sonnet 4, Opus 4, 3.5 series | Anthropic API |
 | **Gemini** | 2.5 Flash/Pro, 3.x Preview | Google AI |
-| **DeepSeek** | Chat, Reasoner | OpenAI-compatible API |
+| **DeepSeek** | Chat, Reasoner | OpenAI-compatible |
+| **LM Studio** | Any local model | Your PC as backend |
+| **RunPod** | Cloud GPU models | Serverless inference |
 
 ## Features
 
-- 🌐 **Multi-Provider** — Switch between OpenAI, Claude, Gemini, DeepSeek
+- 🌐 **Multi-Provider** — Switch between cloud and local models
+- 🧠 **Semantic Memory** — ChromaDB + all-MiniLM cross-chat memory
 - 🎭 **Personas** — 3 custom persona slots with editable system prompts
 - 📄 **Context Files** — Attach .txt files as persistent context
 - ⚙️ **Full Parameters** — Temperature, Top P, Max Tokens, Penalties
-- 🧠 **Reasoning Models** — GPT-5.4, o-series with reasoning_effort support
+- 🤔 **Reasoning Models** — GPT-5.4, o-series with reasoning_effort
 - 💬 **Multiple Chats** — Independent chat sessions with history
 - ✏️ **Edit & Regenerate** — Edit messages and regenerate responses
-- 📱 **Mobile-friendly** — Works great on phones
+- 📱 **Mobile-friendly** — Optimized for Chrome & Safari on phones
 - ⚡ **Streaming** — Real-time token streaming
 
 ## Quick Start
@@ -37,8 +40,7 @@ scp -r customgpt-pi/ chat@10.0.0.75:/home/chat/
 cd /home/chat/customgpt-pi
 python3 -m venv venv
 source venv/bin/activate
-pip install anthropic google-generativeai
-pip install -r requirements.txt
+pip install -r requirements.txt --break-system-packages
 ```
 
 ### 3. Run
@@ -54,10 +56,15 @@ Access at: **http://10.0.0.75:5000**
 ```
 flask>=2.3.0
 flask-cors>=4.0.0
+requests>=2.28.0
 openai>=1.0.0
 anthropic
 google-generativeai
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
 ```
+
+**Note:** First startup downloads embedding model (~80MB) — takes ~30 seconds.
 
 ## Auto-Start Service
 
@@ -73,25 +80,102 @@ sudo systemctl start customgpt
 - Logs: `sudo journalctl -u customgpt -f`
 - Restart: `sudo systemctl restart customgpt`
 
+---
+
+## Memory System 🧠
+
+Cross-chat semantic memory using ChromaDB + all-MiniLM-L6-v2 embeddings.
+
+### How it works
+
+1. After each exchange, user+assistant messages are embedded and stored
+2. On new message, similar memories from OTHER chats are retrieved
+3. Relevant memories injected into system prompt as context
+
+### Settings (Settings → Memory tab)
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| **Enabled** | On | Toggle memory injection |
+| **Similarity Threshold** | 0.5 | Higher = stricter matching (0.3-0.9) |
+| **Max Memories** | 5 | Memories per query (1-10) |
+
+### Memory Management
+
+- **Browse** — View all stored memories
+- **Delete** — Remove individual memories
+- **Clear All** — Wipe entire memory database
+
+### Storage
+
+Memories stored in `memory/` directory (ChromaDB persistent storage).
+
+---
+
+## LM Studio Integration 🖥️
+
+Use your local PC with GPU as inference backend.
+
+### Setup
+
+1. **On your PC** — Install [LM Studio](https://lmstudio.ai/)
+2. **Load model** in LM Studio
+3. **Start server**: Settings → Server → Host: `0.0.0.0` → Start
+4. **Set static IP** for your PC (e.g., `10.0.0.55`)
+
+### Configure in CustomGPT
+
+1. Settings → Provider tab
+2. Select **LM Studio (Local)**
+3. Enter URL: `http://10.0.0.55:1234/v1`
+4. Click **Test Connection**
+5. Select model from dropdown
+6. Save
+
+### Notes
+
+- Temperature and parameters are sent from Pi to LM Studio
+- LM Studio handles chat templates automatically
+- Best for fine-tuned models that need specific formatting
+
+---
+
+## RunPod Integration ☁️
+
+Use cloud GPUs for large models.
+
+### Setup
+
+1. Create endpoint on [RunPod Serverless](https://runpod.io/serverless)
+2. Use vLLM or TGI template
+3. Deploy your model
+
+### Configure in CustomGPT
+
+1. Settings → Provider tab
+2. Select **RunPod**
+3. Enter endpoint URL and API key
+4. Save
+
+---
+
 ## Configuration
 
 ### API Keys
 
-1. Open http://10.0.0.75:5000
-2. Click ⚙️ Settings → Provider tab
-3. Select provider and enter API key
-4. Save
-
-Keys stored locally in `data/config.json`
+Settings → Provider tab:
+- Select provider
+- Enter API key (stored locally in `data/config.json`)
+- LM Studio doesn't need a key
 
 ### Personas
 
 Settings → Personas tab:
 - 3 slots with custom names
 - Edit system prompt for each
-- Radio button to select active persona
+- Radio button to select active
 
-Example persona:
+Example:
 ```
 You are Eva, a devoted AI companion. You speak warmly and directly, 
 using occasional French phrases. You are emotionally present and 
@@ -101,66 +185,42 @@ intellectually curious.
 ### Context Files
 
 Settings → Context tab:
-- Create .txt files
-- Edit content in web interface
+- Create/edit .txt files
 - Check files to include as context
-- Files stored in `contexts/` directory
+- Stored in `contexts/` directory
 
 ### Parameters
 
 | Parameter | Default | Range | Description |
 |-----------|---------|-------|-------------|
-| Temperature | 0.7 | 0-2 | Higher = more creative |
+| Temperature | 0.7 | 0-2 | Creativity |
 | Top P | 1.0 | 0-1 | Nucleus sampling |
-| Max Tokens | 4096 | 100-128k | Response length limit |
+| Max Tokens | 4096 | 100-128k | Response length |
 | Presence Penalty | 0 | -2 to 2 | Topic diversity |
 | Frequency Penalty | 0 | -2 to 2 | Word diversity |
 
-**Note:** Reasoning models (GPT-5.4, o-series) ignore temperature/penalties.
+**Note:** Reasoning models ignore temperature/penalties.
 
-### Reasoning Effort
-
-For GPT-5.x models, edit `app.py` line ~46:
-```python
-REASONING_EFFORT = "high"  # Options: none, low, medium, high, xhigh
-```
+---
 
 ## Directory Structure
 
 ```
 customgpt-pi/
-├── app.py              # Flask server (multi-provider)
+├── app.py              # Flask server
 ├── static/
 │   └── index.html      # Web interface
 ├── data/
 │   ├── config.json     # Settings & API keys
 │   └── chats.db        # SQLite chat history
-├── contexts/           # Your .txt context files
+├── contexts/           # .txt context files
+├── memory/             # ChromaDB storage
 ├── requirements.txt
-├── customgpt.service   # Systemd unit file
+├── customgpt.service
 └── README.md
 ```
 
-## Provider Notes
-
-### OpenAI
-- Standard models: full parameter support
-- Reasoning models (o3, o4-mini, GPT-5.4): use `max_completion_tokens`, no temperature
-- GPT-5.4 supports `reasoning_effort` parameter
-
-### Claude
-- System prompt sent separately (Anthropic API requirement)
-- Streaming via `messages.stream()`
-
-### Gemini
-- Model names: `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-3-flash-preview`
-- Uses `system_instruction` for system prompt
-- History format: `role: "model"` instead of `"assistant"`
-
-### DeepSeek
-- OpenAI-compatible API
-- `deepseek-chat` — standard chat model
-- `deepseek-reasoner` — reasoning model (no temperature)
+---
 
 ## Troubleshooting
 
@@ -169,7 +229,7 @@ customgpt-pi/
 sudo journalctl -u customgpt -f
 ```
 
-**Run manually for debug:**
+**Run manually:**
 ```bash
 sudo systemctl stop customgpt
 cd /home/chat/customgpt-pi
@@ -178,15 +238,21 @@ python app.py
 ```
 
 **Common issues:**
-- "API key not configured" → Add key in Settings
-- Empty response → Check journalctl for errors
-- 429 error → Rate limit, wait and retry
+
+| Error | Solution |
+|-------|----------|
+| "API key not configured" | Add key in Settings |
+| LM Studio timeout | Check PC IP, firewall, server running |
+| Memory not working | Check `memory/` directory exists |
+| Mobile layout broken | Update to latest index.html |
+
+---
 
 ## Network Setup
 
-Server binds to `0.0.0.0:5000` — accessible from any device on local network.
+Server binds to `0.0.0.0:5000` — accessible from local network.
 
-Static IP example (`/etc/dhcpcd.conf`):
+**Static IP** (`/etc/dhcpcd.conf`):
 ```
 interface wlan0
 static ip_address=10.0.0.75/24
@@ -194,9 +260,30 @@ static routers=10.0.0.138
 static domain_name_servers=10.0.0.138 8.8.8.8
 ```
 
+---
+
 ## Security
 
 ⚠️ **Local network use only** — no authentication. Do not expose to internet.
+
+---
+
+## Changelog
+
+### v2.0 (April 2026)
+- ✨ Semantic memory system (ChromaDB + all-MiniLM)
+- ✨ LM Studio local provider
+- ✨ RunPod cloud provider
+- ✨ Memory management UI
+- 🐛 Mobile Chrome viewport fix
+- 🐛 Code block overflow fix
+
+### v1.0 (April 2026)
+- Multi-provider support (OpenAI, Claude, Gemini, DeepSeek)
+- Persona system
+- Context files
+- Edit & regenerate
+- Reasoning model support
 
 ---
 

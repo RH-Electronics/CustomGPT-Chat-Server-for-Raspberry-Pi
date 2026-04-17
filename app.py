@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """
 CustomGPT Chat Server for Raspberry Pi
-Multi-provider AI chat interface with personas and full parameter control
-Supports: OpenAI (including GPT-5.x reasoning), Claude, Gemini, DeepSeek
+Multi-provider AI chat with persistent memory across chats
 
-Reasoning models (GPT-5.x, o-series, deepseek-reasoner) use different API parameters.
+Features:
+- Multi-provider: OpenAI (GPT-4.x, GPT-5.x, o-series), Claude, Gemini, DeepSeek
+- Personas: 3 custom persona slots
+- Memory: ChromaDB + all-MiniLM for cross-chat semantic search
+- Context files: .txt files as persistent context
 """
 
 import os
@@ -23,45 +26,179 @@ from flask_cors import CORS
 APP_DIR = Path(__file__).parent
 DATA_DIR = APP_DIR / "data"
 CONTEXTS_DIR = APP_DIR / "contexts"
+MEMORY_DIR = APP_DIR / "memory"  # ChromaDB storage
 DB_PATH = DATA_DIR / "chats.db"
 CONFIG_PATH = DATA_DIR / "config.json"
 
 DATA_DIR.mkdir(exist_ok=True)
 CONTEXTS_DIR.mkdir(exist_ok=True)
+MEMORY_DIR.mkdir(exist_ok=True)
 
-# Models that are "reasoning" models and don't support temperature/penalties
-# These use max_completion_tokens instead of max_tokens
-# GPT-5.x support reasoning.effort parameter
+# ============================================================================
+# MEMORY SYSTEM (ChromaDB + all-MiniLM)
+# ============================================================================
+
+# Lazy loading - initialized on first use
+_chroma_client = None
+_chroma_collection = None
+_embedding_model = None
+
+def get_embedding_model():
+    """Lazy load the embedding model (all-MiniLM-L6-v2, ~80MB)."""
+    global _embedding_model
+    if _embedding_model is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+            print("[Memory] Loading embedding model (first time may take ~30s)...")
+            _embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+            print("[Memory] Embedding model loaded!")
+        except ImportError:
+            print("[Memory] WARNING: sentence-transformers not installed. Memory disabled.")
+            return None
+    return _embedding_model
+
+def get_memory_collection():
+    """Lazy load ChromaDB collection."""
+    global _chroma_client, _chroma_collection
+    if _chroma_collection is None:
+        try:
+            import chromadb
+            from chromadb.config import Settings
+            
+            _chroma_client = chromadb.PersistentClient(
+                path=str(MEMORY_DIR),
+                settings=Settings(anonymized_telemetry=False)
+            )
+            _chroma_collection = _chroma_client.get_or_create_collection(
+                name="chat_memories",
+                metadata={"hnsw:space": "cosine"}
+            )
+            print(f"[Memory] ChromaDB loaded. {_chroma_collection.count()} memories stored.")
+        except ImportError:
+            print("[Memory] WARNING: chromadb not installed. Memory disabled.")
+            return None
+    return _chroma_collection
+
+def save_to_memory(chat_id: str, user_msg: str, assistant_msg: str):
+    """Save a conversation exchange to memory."""
+    model = get_embedding_model()
+    collection = get_memory_collection()
+    
+    if model is None or collection is None:
+        return
+    
+    try:
+        # Create a memory document
+        memory_text = f"User: {user_msg}\nAssistant: {assistant_msg}"
+        
+        # Generate embedding
+        embedding = model.encode(memory_text).tolist()
+        
+        # Store in ChromaDB
+        memory_id = f"{chat_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+        
+        collection.add(
+            ids=[memory_id],
+            embeddings=[embedding],
+            documents=[memory_text],
+            metadatas=[{
+                "chat_id": chat_id,
+                "timestamp": datetime.now().isoformat(),
+                "user_msg_preview": user_msg[:100]
+            }]
+        )
+        print(f"[Memory] Saved memory {memory_id[:20]}...")
+    except Exception as e:
+        print(f"[Memory] Error saving: {e}")
+
+def search_memories(query: str, limit: int = 5, exclude_chat_id: str = None, similarity_threshold: float = 0.5) -> list:
+    """Search for relevant memories using semantic similarity."""
+    model = get_embedding_model()
+    collection = get_memory_collection()
+    
+    if model is None or collection is None:
+        return []
+    
+    try:
+        # Generate query embedding
+        query_embedding = model.encode(query).tolist()
+        
+        # Search in ChromaDB
+        results = collection.query(
+            query_embeddings=[query_embedding],
+            n_results=limit * 2,  # Get more, filter later
+            include=["documents", "metadatas", "distances"]
+        )
+        
+        # Convert similarity threshold to distance threshold
+        # similarity = 1 - distance, so distance = 1 - similarity
+        distance_threshold = 1.0 - similarity_threshold
+        
+        memories = []
+        if results and results['documents'] and results['documents'][0]:
+            for i, doc in enumerate(results['documents'][0]):
+                metadata = results['metadatas'][0][i] if results['metadatas'] else {}
+                distance = results['distances'][0][i] if results['distances'] else 1.0
+                
+                # Skip memories from current chat (avoid redundancy)
+                if exclude_chat_id and metadata.get('chat_id') == exclude_chat_id:
+                    continue
+                
+                # Only include if similarity > threshold
+                if distance < distance_threshold:
+                    memories.append({
+                        "id": results['ids'][0][i] if results['ids'] else "",
+                        "content": doc,
+                        "timestamp": metadata.get('timestamp', ''),
+                        "chat_id": metadata.get('chat_id', ''),
+                        "similarity": round(1 - distance, 2)
+                    })
+                
+                if len(memories) >= limit:
+                    break
+        
+        return memories
+    except Exception as e:
+        print(f"[Memory] Error searching: {e}")
+        return []
+
+def format_memories_for_context(memories: list) -> str:
+    """Format memories for injection into system prompt."""
+    if not memories:
+        return ""
+    
+    lines = ["--- RELEVANT MEMORIES FROM PAST CHATS ---"]
+    for i, mem in enumerate(memories, 1):
+        lines.append(f"\n[Memory {i}] (similarity: {mem['similarity']}):")
+        lines.append(mem['content'])
+    
+    return "\n".join(lines)
+
+# ============================================================================
+# REASONING MODELS DETECTION
+# ============================================================================
+
 REASONING_MODELS = {
-    # OpenAI o-series (older reasoning)
     'o1', 'o1-mini', 'o1-preview',
     'o3', 'o3-mini', 'o4-mini',
-    # GPT-5.x series (all are reasoning models)
     'gpt-5', 'gpt-5-mini', 'gpt-5-nano',
     'gpt-5.1', 'gpt-5.2', 'gpt-5.3', 'gpt-5.4',
-    # DeepSeek reasoner
     'deepseek-reasoner',
 }
 
-# Reasoning effort level for GPT-5.x models
-# Options: none, low, medium, high, xhigh
-# Change this to adjust reasoning depth
-REASONING_EFFORT = "medium"  # <-- CHANGE THIS TO: none, low, medium, high, xhigh
+REASONING_EFFORT = "high"  # Options: none, low, medium, high, xhigh
 
 def is_reasoning_model(model_name):
     """Check if model is a reasoning model that needs special handling."""
     model_lower = model_name.lower()
     
     # GPT-5.x-chat-latest are Instant models - NOT reasoning!
-    # They work like regular models with temperature support
     if 'chat-latest' in model_lower:
         return False
     
-    # Check exact matches and prefixes
     for rm in REASONING_MODELS:
         if model_lower == rm or model_lower.startswith(rm + '-') or model_lower.startswith(rm + '.'):
             return True
-    # Also catch gpt-5.x patterns (but not chat-latest which we excluded above)
     if 'gpt-5' in model_lower:
         return True
     return False
@@ -69,12 +206,14 @@ def is_reasoning_model(model_name):
 def is_gpt5_model(model_name):
     """Check if model is GPT-5.x reasoning model (supports reasoning_effort parameter)."""
     model_lower = model_name.lower()
-    # chat-latest are Instant models, NOT reasoning
     if 'chat-latest' in model_lower:
         return False
     return 'gpt-5' in model_lower
 
-# Provider configurations
+# ============================================================================
+# PROVIDER CONFIGURATIONS
+# ============================================================================
+
 PROVIDERS = {
     "openai": {
         "name": "OpenAI",
@@ -108,6 +247,18 @@ PROVIDERS = {
         "name": "DeepSeek",
         "base_url": "https://api.deepseek.com",
         "models": ["deepseek-chat", "deepseek-reasoner"]
+    },
+    "lmstudio": {
+        "name": "LM Studio (Local)",
+        "base_url": "http://10.0.0.55:1234/v1",
+        "models": ["local-model"],
+        "dynamic_models": True
+    },
+    "runpod": {
+        "name": "RunPod",
+        "base_url": "",
+        "models": ["endpoint"],
+        "requires_endpoint": True
     }
 }
 
@@ -123,8 +274,12 @@ DEFAULT_CONFIG = {
         "openai": "",
         "claude": "",
         "gemini": "",
-        "deepseek": ""
+        "deepseek": "",
+        "lmstudio": "not-needed",
+        "runpod": ""
     },
+    "lmstudio_url": "http://10.0.0.55:1234/v1",
+    "runpod_url": "",
     "model": "gpt-4.1",
     "personas": DEFAULT_PERSONAS,
     "temperature": 0.7,
@@ -133,7 +288,10 @@ DEFAULT_CONFIG = {
     "presence_penalty": 0.0,
     "frequency_penalty": 0.0,
     "context_files": [],
-    "reasoning_effort": "high"  # For GPT-5.x: none, low, medium, high, xhigh
+    "memory_enabled": True,
+    "memory_results": 5,
+    "memory_similarity_threshold": 0.5,
+    "reasoning_effort": "high"
 }
 
 # ============================================================================
@@ -220,27 +378,40 @@ def get_context_content():
 # ============================================================================
 
 def call_openai_stream(config, messages):
-    """
-    OpenAI and DeepSeek API with full support for:
-    - Standard models (GPT-4.x, etc): temperature, top_p, penalties
-    - Reasoning models (o-series): max_completion_tokens only
-    - GPT-5.x models: max_completion_tokens + reasoning.effort
-    """
+    """OpenAI, DeepSeek, LM Studio, RunPod API with reasoning model support."""
     from openai import OpenAI
     
     provider = config.get('provider', 'openai')
     api_key = config['api_keys'].get(provider, '')
     model = config.get('model', 'gpt-4.1')
     
+    # Set up client based on provider
     if provider == 'deepseek':
         client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+    elif provider == 'lmstudio':
+        base_url = config.get('lmstudio_url', 'http://10.0.0.55:1234/v1')
+        client = OpenAI(api_key="not-needed", base_url=base_url)
+        print(f"[LM Studio] Connecting to {base_url}")
+    elif provider == 'runpod':
+        base_url = config.get('runpod_url', '')
+        if not base_url:
+            raise ValueError("RunPod URL not configured")
+        client = OpenAI(api_key=api_key, base_url=base_url)
+        print(f"[RunPod] Connecting to {base_url}")
     else:
         client = OpenAI(api_key=api_key)
     
-    # Check if this is a reasoning model
-    if is_reasoning_model(model):
-        # Reasoning models use max_completion_tokens instead of max_tokens
-        
+    # For local models, skip reasoning model logic
+    if provider in ['lmstudio', 'runpod']:
+        params = {
+            "model": model,
+            "messages": messages,
+            "temperature": config.get('temperature', 0.7),
+            "top_p": config.get('top_p', 1.0),
+            "max_tokens": config.get('max_tokens', 4096),
+            "stream": True
+        }
+    elif is_reasoning_model(model):
         params = {
             "model": model,
             "messages": messages,
@@ -248,18 +419,13 @@ def call_openai_stream(config, messages):
             "stream": True
         }
         
-        # GPT-5.x models support reasoning_effort parameter in Chat Completions API
-        # Format: "reasoning_effort": "none" | "low" | "medium" | "high" | "xhigh"
-        # NOTE: temperature and other params are ONLY supported when reasoning_effort="none"
         if is_gpt5_model(model):
             effort = config.get('reasoning_effort', REASONING_EFFORT)
-            params["reasoning_effort"] = effort  # Chat Completions uses this format!
+            params["reasoning_effort"] = effort
             print(f"[GPT-5.x] Using reasoning_effort: {effort}")
         
         print(f"[Reasoning Model] {model} - no temperature/penalties")
-        
     else:
-        # Standard models - full parameter support
         params = {
             "model": model,
             "messages": messages,
@@ -273,17 +439,15 @@ def call_openai_stream(config, messages):
     
     try:
         response = client.chat.completions.create(**params)
-        
         for chunk in response:
             if chunk.choices and chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
-                
     except Exception as e:
-        print(f"[OpenAI Error] {type(e).__name__}: {e}")
+        print(f"[{provider.upper()} Error] {type(e).__name__}: {e}")
         raise
 
 def call_claude_stream(config, messages):
-    """Anthropic Claude API"""
+    """Anthropic Claude API."""
     import anthropic
     
     api_key = config['api_keys'].get('claude', '')
@@ -312,7 +476,7 @@ def call_claude_stream(config, messages):
         raise
 
 def call_gemini_stream(config, messages):
-    """Google Gemini API"""
+    """Google Gemini API."""
     import google.generativeai as genai
     
     api_key = config['api_keys'].get('gemini', '')
@@ -320,7 +484,6 @@ def call_gemini_stream(config, messages):
     
     model_name = config.get('model', 'gemini-2.0-flash')
     
-    # Convert messages to Gemini format
     system_instruction = ""
     history = []
     current_message = ""
@@ -364,16 +527,15 @@ def call_gemini_stream(config, messages):
         for chunk in response:
             if chunk.text:
                 yield chunk.text
-                
     except Exception as e:
         print(f"[Gemini Error] {type(e).__name__}: {e}")
         raise
 
 def call_provider_stream(config, messages):
-    """Route to appropriate provider"""
+    """Route to appropriate provider."""
     provider = config.get('provider', 'openai')
     
-    if provider in ['openai', 'deepseek']:
+    if provider in ['openai', 'deepseek', 'lmstudio', 'runpod']:
         yield from call_openai_stream(config, messages)
     elif provider == 'claude':
         yield from call_claude_stream(config, messages)
@@ -406,7 +568,6 @@ def serve_static(path):
 
 @app.route('/api/providers', methods=['GET'])
 def get_providers():
-    """Get available providers and their models."""
     return jsonify(PROVIDERS)
 
 # ----- Configuration -----
@@ -414,7 +575,6 @@ def get_providers():
 @app.route('/api/config', methods=['GET'])
 def get_config():
     config = load_config()
-    # Mask API keys
     masked_keys = {}
     for provider, key in config.get('api_keys', {}).items():
         if key:
@@ -432,13 +592,14 @@ def update_config():
     
     allowed_fields = ['provider', 'model', 'temperature', 'top_p', 
                       'max_tokens', 'presence_penalty', 'frequency_penalty', 
-                      'context_files', 'personas', 'reasoning_effort']
+                      'context_files', 'personas', 'reasoning_effort',
+                      'memory_enabled', 'memory_results', 'memory_similarity_threshold',
+                      'lmstudio_url', 'runpod_url']
     
     for field in allowed_fields:
         if field in data:
             config[field] = data[field]
     
-    # Handle API keys separately
     if 'api_keys' in data:
         for provider, key in data['api_keys'].items():
             if key and not key.startswith('***'):
@@ -446,6 +607,125 @@ def update_config():
     
     save_config(config)
     return jsonify({"status": "ok"})
+
+# ----- Memory Stats -----
+
+@app.route('/api/memory/stats', methods=['GET'])
+def memory_stats():
+    """Get memory system statistics."""
+    collection = get_memory_collection()
+    if collection is None:
+        return jsonify({"enabled": False, "count": 0, "status": "not installed"})
+    
+    return jsonify({
+        "enabled": True,
+        "count": collection.count(),
+        "status": "active"
+    })
+
+@app.route('/api/memory/search', methods=['POST'])
+def memory_search():
+    """Manual memory search endpoint."""
+    query = request.json.get('query', '')
+    limit = request.json.get('limit', 5)
+    config = load_config()
+    threshold = config.get('memory_similarity_threshold', 0.5)
+    
+    if not query:
+        return jsonify({"error": "Empty query"}), 400
+    
+    memories = search_memories(query, limit=limit, similarity_threshold=threshold)
+    return jsonify({"memories": memories, "count": len(memories)})
+
+@app.route('/api/memory/all', methods=['GET'])
+def memory_list_all():
+    """List all memories with pagination."""
+    collection = get_memory_collection()
+    if collection is None:
+        return jsonify({"memories": [], "total": 0})
+    
+    try:
+        limit = request.args.get('limit', 50, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        # Get all memories
+        results = collection.get(
+            include=["documents", "metadatas"],
+            limit=limit,
+            offset=offset
+        )
+        
+        memories = []
+        if results and results['documents']:
+            for i, doc in enumerate(results['documents']):
+                metadata = results['metadatas'][i] if results['metadatas'] else {}
+                memories.append({
+                    "id": results['ids'][i],
+                    "content": doc,
+                    "timestamp": metadata.get('timestamp', ''),
+                    "chat_id": metadata.get('chat_id', ''),
+                    "user_msg_preview": metadata.get('user_msg_preview', '')
+                })
+        
+        return jsonify({
+            "memories": memories,
+            "total": collection.count(),
+            "limit": limit,
+            "offset": offset
+        })
+    except Exception as e:
+        print(f"[Memory] Error listing: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/memory/<memory_id>', methods=['DELETE'])
+def memory_delete(memory_id):
+    """Delete a specific memory."""
+    collection = get_memory_collection()
+    if collection is None:
+        return jsonify({"error": "Memory system not available"}), 500
+    
+    try:
+        collection.delete(ids=[memory_id])
+        return jsonify({"status": "ok", "deleted": memory_id})
+    except Exception as e:
+        print(f"[Memory] Error deleting: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/memory/clear', methods=['POST'])
+def memory_clear():
+    """Clear all memories."""
+    global _chroma_collection
+    collection = get_memory_collection()
+    if collection is None:
+        return jsonify({"error": "Memory system not available"}), 500
+    
+    try:
+        # Get all IDs and delete
+        all_ids = collection.get()['ids']
+        if all_ids:
+            collection.delete(ids=all_ids)
+        return jsonify({"status": "ok", "deleted": len(all_ids)})
+    except Exception as e:
+        print(f"[Memory] Error clearing: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/lmstudio/models', methods=['GET'])
+def lmstudio_models():
+    """Fetch available models from LM Studio."""
+    config = load_config()
+    base_url = config.get('lmstudio_url', 'http://10.0.0.55:1234/v1')
+    
+    try:
+        import requests
+        response = requests.get(f"{base_url}/models", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            models = [m['id'] for m in data.get('data', [])]
+            return jsonify({"models": models, "status": "connected"})
+        else:
+            return jsonify({"models": [], "status": "error", "code": response.status_code})
+    except Exception as e:
+        return jsonify({"models": [], "status": "offline", "error": str(e)})
 
 # ----- Context Files -----
 
@@ -599,13 +879,29 @@ def send_message(chat_id):
     conn.commit()
     conn.close()
     
-    # Build messages
-    messages = []
+    # Build system prompt
     system_content = get_active_persona(config)
+    
+    # Add context files
     context = get_context_content()
     if context:
-        system_content += f"\n\n--- CONTEXT ---\n{context}"
+        system_content += f"\n\n--- CONTEXT FILES ---\n{context}"
     
+    # Add memory search results (if enabled)
+    if config.get('memory_enabled', True):
+        threshold = config.get('memory_similarity_threshold', 0.5)
+        memories = search_memories(
+            user_message, 
+            limit=config.get('memory_results', 5),
+            exclude_chat_id=chat_id,
+            similarity_threshold=threshold
+        )
+        memory_context = format_memories_for_context(memories)
+        if memory_context:
+            system_content += f"\n\n{memory_context}"
+    
+    # Build messages
+    messages = []
     if system_content:
         messages.append({"role": "system", "content": system_content})
     
@@ -621,6 +917,7 @@ def send_message(chat_id):
                 full_response += content
                 yield f"data: {json.dumps({'content': content})}\n\n"
             
+            # Save assistant response
             conn = get_db()
             now = datetime.now().isoformat()
             conn.execute(
@@ -629,6 +926,11 @@ def send_message(chat_id):
             )
             conn.commit()
             conn.close()
+            
+            # Save to memory (async would be better, but simple is fine for Pi)
+            if config.get('memory_enabled', True):
+                save_to_memory(chat_id, user_message, full_response)
+            
             yield f"data: {json.dumps({'done': True})}\n\n"
         except Exception as e:
             error_msg = f"{type(e).__name__}: {str(e)}"
@@ -659,7 +961,6 @@ def auto_title(chat_id):
         return jsonify({"title": "New Chat"})
     
     try:
-        # Use a simple approach - just use the provider's API
         title_messages = [
             {"role": "system", "content": "Generate a short title (3-5 words) for this chat. Reply with just the title, no quotes."},
             {"role": "user", "content": first_msg['content'][:500]}
@@ -687,13 +988,22 @@ def auto_title(chat_id):
 
 if __name__ == '__main__':
     print("\n" + "="*60)
-    print("  CustomGPT Chat Server - Multi-Provider Edition")
+    print("  CustomGPT Chat Server - Multi-Provider + Memory")
     print("="*60)
-    print(f"  Providers: OpenAI, Claude, Gemini, DeepSeek")
-    print(f"  Reasoning models: GPT-5.x, o-series, deepseek-reasoner")
-    print(f"  Default reasoning effort: {REASONING_EFFORT}")
+    print(f"  Providers: OpenAI, Claude, Gemini, DeepSeek, LM Studio, RunPod")
+    print(f"  Memory: ChromaDB + all-MiniLM-L6-v2")
     print(f"  Data: {DATA_DIR}")
     print("="*60)
+    
+    # Pre-load memory system
+    print("\n[Startup] Initializing memory system...")
+    collection = get_memory_collection()
+    if collection:
+        model = get_embedding_model()
+        if model:
+            print(f"[Startup] Memory ready! {collection.count()} memories loaded.")
+    
+    print("\n" + "="*60)
     print("  Starting server on http://0.0.0.0:5000")
     print("="*60 + "\n")
     
