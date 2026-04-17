@@ -25,25 +25,24 @@
             --scrollbar: #333344;
             --scrollbar-hover: #444455;
         }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
+        html, body {
             font-family: 'Inter', -apple-system, sans-serif;
             background: var(--bg-deep);
             color: var(--text-primary);
-            height: 100vh;
+            height: 100%;
+            height: 100dvh;
             overflow: hidden;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            left: 0;
         }
-
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
-
-        .app { display: flex; height: 100vh; }
-
-        /* Sidebar */
+        .app { display: flex; height: 100%; height: 100dvh; width: 100%; position: fixed; top: 0; left: 0; }
         .sidebar {
             width: 280px;
             background: var(--bg-main);
@@ -53,7 +52,6 @@
             transition: transform 0.3s ease;
             z-index: 100;
         }
-
         .sidebar-header {
             padding: 16px;
             border-bottom: 1px solid var(--border);
@@ -61,7 +59,6 @@
             align-items: center;
             gap: 12px;
         }
-
         .logo {
             font-family: 'JetBrains Mono', monospace;
             font-weight: 600;
@@ -69,7 +66,6 @@
             color: var(--accent);
             text-shadow: 0 0 20px var(--accent-glow);
         }
-
         .new-chat-btn {
             width: calc(100% - 32px);
             padding: 12px 16px;
@@ -87,11 +83,8 @@
             transition: all 0.2s;
             box-shadow: 0 4px 20px var(--accent-glow);
         }
-
         .new-chat-btn:hover { background: #ff4d6d; transform: translateY(-1px); }
-
         .chat-list { flex: 1; overflow-y: auto; padding: 8px; }
-
         .chat-item {
             padding: 12px 16px;
             border-radius: 8px;
@@ -101,27 +94,13 @@
             gap: 10px;
             transition: all 0.15s;
         }
-
         .chat-item:hover { background: var(--bg-hover); }
         .chat-item.active { background: var(--bg-active); border-left: 3px solid var(--accent); }
-
         .chat-item-title { flex: 1; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-        .chat-item-delete {
-            opacity: 0;
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            padding: 4px;
-            transition: all 0.15s;
-        }
-
+        .chat-item-delete { opacity: 0; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; }
         .chat-item:hover .chat-item-delete { opacity: 1; }
         .chat-item-delete:hover { color: var(--accent); }
-
         .sidebar-footer { padding: 12px 16px; border-top: 1px solid var(--border); }
-
         .settings-btn {
             width: 100%;
             padding: 10px 16px;
@@ -136,12 +115,8 @@
             gap: 8px;
             transition: all 0.15s;
         }
-
         .settings-btn:hover { background: var(--bg-hover); border-color: var(--accent); color: var(--text-primary); }
-
-        /* Main Content */
-        .main { flex: 1; display: flex; flex-direction: column; background: var(--bg-deep); }
-
+        .main { flex: 1; display: flex; flex-direction: column; background: var(--bg-deep); min-height: 0; overflow: hidden; }
         .main-header {
             padding: 16px 24px;
             border-bottom: 1px solid var(--border);
@@ -149,35 +124,20 @@
             align-items: center;
             gap: 16px;
             background: var(--bg-main);
+            flex-shrink: 0;
         }
-
-        .menu-toggle { display: none; background: none; border: none; color: var(--text-primary); font-size: 24px; cursor: pointer; padding: 4px; }
-
+        .menu-toggle { display: none; background: none; border: none; color: var(--text-primary); font-size: 24px; cursor: pointer; }
         .chat-title { font-size: 16px; font-weight: 500; }
-
-        .provider-badge {
+        .header-badges { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+        .provider-badge, .model-badge {
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
             padding: 4px 10px;
-            background: var(--accent-soft);
-            color: var(--accent);
             border-radius: 12px;
-            margin-left: auto;
         }
-
-        .model-badge {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            padding: 4px 10px;
-            background: var(--bg-panel);
-            color: var(--text-secondary);
-            border-radius: 12px;
-            border: 1px solid var(--border);
-        }
-
-        /* Messages */
-        .messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
-
+        .provider-badge { background: var(--bg-active); color: var(--text-secondary); }
+        .model-badge { background: var(--accent-soft); color: var(--accent); }
+        .messages { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 24px; display: flex; flex-direction: column; gap: 16px; min-height: 0; }
         .message {
             max-width: 85%;
             padding: 14px 18px;
@@ -185,71 +145,26 @@
             line-height: 1.6;
             font-size: 15px;
             animation: fadeIn 0.3s ease;
+            position: relative;
+            overflow-wrap: break-word;
+            word-break: break-word;
         }
-
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
         .message.user { align-self: flex-end; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); border-bottom-right-radius: 4px; }
         .message.assistant { align-self: flex-start; background: var(--bg-panel); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
-
-        .message-wrapper { display: flex; flex-direction: column; max-width: 85%; position: relative; }
-        .message-wrapper.user { align-self: flex-end; align-items: flex-end; }
-        .message-wrapper.assistant { align-self: flex-start; align-items: flex-start; }
-        .message-wrapper .message { max-width: 100%; }
-
-        .message-actions { display: none; gap: 4px; margin-top: 6px; opacity: 0; transition: opacity 0.15s; }
-        .message-wrapper:hover .message-actions, .message-wrapper .message-actions.visible { display: flex; opacity: 1; }
-
-        .message-action-btn {
-            background: var(--bg-panel);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text-secondary);
-            cursor: pointer;
-            font-size: 12px;
-            padding: 4px 10px;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            transition: all 0.15s;
-        }
-
-        .message-action-btn:hover { background: var(--bg-hover); border-color: var(--accent); color: var(--text-primary); }
-
-        .edit-textarea {
-            flex: 1;
-            padding: 10px 14px;
-            background: var(--bg-deep);
-            border: 1px solid var(--accent);
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 14px;
-            font-family: inherit;
-            resize: vertical;
-            min-height: 60px;
-        }
-
-        .edit-textarea:focus { outline: none; box-shadow: 0 0 0 2px var(--accent-soft); }
-
-        .edit-btn { padding: 8px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; transition: all 0.15s; }
-        .edit-btn.save { background: var(--accent); color: white; }
-        .edit-btn.cancel { background: var(--bg-panel); border: 1px solid var(--border); color: var(--text-secondary); }
-
-        .message pre { background: var(--bg-deep); padding: 12px; border-radius: 8px; overflow-x: auto; margin: 8px 0; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
-        .message code { font-family: 'JetBrains Mono', monospace; background: var(--bg-deep); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
-
+        .message pre { background: var(--bg-deep); padding: 12px; border-radius: 8px; overflow-x: auto; margin: 8px 0; font-family: 'JetBrains Mono', monospace; font-size: 13px; max-width: 100%; white-space: pre-wrap; word-break: break-all; }
+        .message code { font-family: 'JetBrains Mono', monospace; background: var(--bg-deep); padding: 2px 6px; border-radius: 4px; font-size: 13px; word-break: break-all; }
+        .message-actions { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 4px; opacity: 0.85; }
+        .msg-action-btn { background: var(--bg-panel); border: 1px solid var(--border); color: var(--text-muted); padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .msg-action-btn:hover { color: var(--accent); border-color: var(--accent); }
         .typing-indicator { display: flex; gap: 4px; padding: 16px 18px; }
         .typing-indicator span { width: 8px; height: 8px; background: var(--accent); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
         .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
         .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-
         @keyframes bounce { 0%, 80%, 100% { transform: scale(0); opacity: 0.5; } 40% { transform: scale(1); opacity: 1; } }
-
-        /* Input Area */
-        .input-area { padding: 16px 24px 24px; background: var(--bg-main); border-top: 1px solid var(--border); }
+        .input-area { padding: 16px 24px 24px; padding-bottom: max(24px, env(safe-area-inset-bottom)); background: var(--bg-main); border-top: 1px solid var(--border); flex-shrink: 0; }
         .input-container { display: flex; gap: 12px; max-width: 900px; margin: 0 auto; }
-        .input-wrapper { flex: 1; position: relative; }
-
+        .input-wrapper { flex: 1; }
         #message-input {
             width: 100%;
             padding: 14px 18px;
@@ -264,10 +179,8 @@
             max-height: 200px;
             transition: border-color 0.2s;
         }
-
         #message-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
         #message-input::placeholder { color: var(--text-muted); }
-
         .send-btn {
             padding: 14px 24px;
             background: var(--accent);
@@ -277,15 +190,9 @@
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
-
         .send-btn:hover:not(:disabled) { background: #ff4d6d; transform: translateY(-1px); }
         .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        /* Modal */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -299,15 +206,13 @@
             pointer-events: none;
             transition: opacity 0.2s;
         }
-
         .modal-overlay.active { opacity: 1; pointer-events: auto; }
-
         .modal {
             background: var(--bg-main);
             border: 1px solid var(--border);
             border-radius: 16px;
             width: 90%;
-            max-width: 650px;
+            max-width: 700px;
             max-height: 90vh;
             overflow: hidden;
             display: flex;
@@ -315,38 +220,20 @@
             transform: scale(0.95);
             transition: transform 0.2s;
         }
-
         .modal-overlay.active .modal { transform: scale(1); }
-
         .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
         .modal-header h2 { font-size: 18px; font-weight: 600; }
-        .modal-close { background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 4px; line-height: 1; }
+        .modal-close { background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; }
         .modal-close:hover { color: var(--accent); }
-
         .modal-body { padding: 24px; overflow-y: auto; flex: 1; }
-
-        .modal-tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 12px; flex-wrap: wrap; }
-
-        .modal-tab {
-            padding: 8px 14px;
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 13px;
-            cursor: pointer;
-            border-radius: 6px;
-            transition: all 0.15s;
-        }
-
+        .modal-tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 12px; flex-wrap: wrap; }
+        .modal-tab { padding: 8px 16px; background: none; border: none; color: var(--text-secondary); font-size: 14px; cursor: pointer; border-radius: 6px; transition: all 0.15s; }
         .modal-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
         .modal-tab.active { color: var(--accent); background: var(--accent-soft); }
-
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-
         .form-group { margin-bottom: 20px; }
         .form-group label { display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 8px; }
-
         .form-group input, .form-group textarea, .form-group select {
             width: 100%;
             padding: 12px 14px;
@@ -356,119 +243,58 @@
             color: var(--text-primary);
             font-size: 14px;
             font-family: inherit;
-            transition: border-color 0.2s;
         }
-
         .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: var(--accent); }
         .form-group textarea { min-height: 120px; resize: vertical; font-family: 'JetBrains Mono', monospace; }
         .form-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
-
         .slider-group { display: flex; align-items: center; gap: 12px; }
         .slider-group input[type="range"] { flex: 1; -webkit-appearance: none; height: 6px; background: var(--bg-active); border-radius: 3px; border: none; padding: 0; }
-        .slider-group input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--accent); border-radius: 50%; cursor: pointer; box-shadow: 0 2px 8px var(--accent-glow); }
+        .slider-group input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--accent); border-radius: 50%; cursor: pointer; }
         .slider-value { font-family: 'JetBrains Mono', monospace; font-size: 13px; min-width: 45px; text-align: right; color: var(--text-secondary); }
-
-        /* Persona Cards */
-        .persona-card {
-            background: var(--bg-panel);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
-            transition: all 0.2s;
-        }
-
-        .persona-card.active { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
-
+        .toggle-group { display: flex; align-items: center; gap: 12px; }
+        .toggle { width: 48px; height: 26px; background: var(--bg-active); border-radius: 13px; position: relative; cursor: pointer; transition: background 0.2s; }
+        .toggle.active { background: var(--accent); }
+        .toggle::after { content: ''; position: absolute; width: 20px; height: 20px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: left 0.2s; }
+        .toggle.active::after { left: 25px; }
+        .persona-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+        .persona-card.active { border-color: var(--accent); }
         .persona-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-
-        .persona-radio { width: 20px; height: 20px; accent-color: var(--accent); cursor: pointer; }
-
-        .persona-name-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            border-bottom: 1px solid var(--border);
-            color: var(--text-primary);
-            font-size: 15px;
-            font-weight: 500;
-            padding: 4px 0;
-        }
-
-        .persona-name-input:focus { outline: none; border-color: var(--accent); }
-
-        .persona-prompt {
-            width: 100%;
-            min-height: 100px;
-            background: var(--bg-deep);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px;
-            color: var(--text-primary);
-            font-size: 13px;
-            font-family: 'JetBrains Mono', monospace;
-            resize: vertical;
-        }
-
-        .persona-prompt:focus { outline: none; border-color: var(--accent); }
-
-        /* Provider selector */
-        .provider-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
-
-        .provider-card {
-            background: var(--bg-panel);
-            border: 2px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-align: center;
-        }
-
-        .provider-card:hover { border-color: var(--text-muted); }
-        .provider-card.active { border-color: var(--accent); background: var(--accent-soft); }
-
-        .provider-card-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
-        .provider-card-status { font-size: 11px; color: var(--text-muted); }
-        .provider-card-status.configured { color: var(--success); }
-
-        /* File list */
+        .persona-radio { width: 18px; height: 18px; accent-color: var(--accent); }
+        .persona-name { flex: 1; background: transparent; border: none; color: var(--text-primary); font-size: 14px; font-weight: 500; }
+        .persona-name:focus { outline: none; }
+        .persona-prompt { width: 100%; min-height: 80px; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 6px; padding: 10px; color: var(--text-primary); font-size: 13px; font-family: 'JetBrains Mono', monospace; resize: vertical; }
         .file-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
-
-        .file-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 14px;
-            background: var(--bg-panel);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-        }
-
+        .file-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; }
         .file-item.selected { border-color: var(--accent); background: var(--accent-soft); }
         .file-checkbox { width: 18px; height: 18px; accent-color: var(--accent); }
         .file-name { flex: 1; font-size: 14px; }
         .file-size { font-size: 12px; color: var(--text-muted); }
-        .file-actions { display: flex; gap: 8px; }
-        .file-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px; font-size: 16px; }
+        .file-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px; }
         .file-btn:hover { color: var(--accent); }
-
         .add-file-form { display: flex; gap: 8px; margin-top: 12px; }
         .add-file-form input { flex: 1; }
-        .add-file-btn { padding: 10px 16px; background: var(--accent); border: none; border-radius: 8px; color: white; cursor: pointer; font-size: 14px; }
-
+        .add-file-btn { padding: 10px 16px; background: var(--accent); border: none; border-radius: 8px; color: white; cursor: pointer; }
         .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px; }
-        .btn-secondary { padding: 10px 20px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); cursor: pointer; font-size: 14px; }
-        .btn-primary { padding: 10px 20px; background: var(--accent); border: none; border-radius: 8px; color: white; cursor: pointer; font-size: 14px; font-weight: 500; }
+        .btn-secondary { padding: 10px 20px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); cursor: pointer; }
+        .btn-primary { padding: 10px 20px; background: var(--accent); border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: 500; }
         .btn-primary:hover { background: #ff4d6d; }
-
-        /* Welcome */
+        .btn-danger { padding: 10px 20px; background: #dc2626; border: none; border-radius: 8px; color: white; cursor: pointer; }
+        .btn-danger:hover { background: #ef4444; }
         .welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px; }
         .welcome-icon { font-size: 64px; margin-bottom: 24px; opacity: 0.8; }
         .welcome h1 { font-size: 28px; margin-bottom: 12px; }
         .welcome p { color: var(--text-secondary); max-width: 400px; line-height: 1.6; }
-
-        /* Mobile */
+        .memory-item { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; }
+        .memory-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .memory-meta { font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+        .memory-content { font-size: 13px; color: var(--text-secondary); line-height: 1.5; max-height: 100px; overflow: hidden; }
+        .memory-stats { display: flex; gap: 20px; margin-bottom: 20px; padding: 16px; background: var(--bg-panel); border-radius: 8px; }
+        .memory-stat { text-align: center; }
+        .memory-stat-value { font-size: 24px; font-weight: 600; color: var(--accent); }
+        .memory-stat-label { font-size: 12px; color: var(--text-muted); }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+        .status-badge.active { background: #00d68f20; color: #00d68f; }
+        .status-badge.offline { background: #ff2d5520; color: #ff2d55; }
         @media (max-width: 768px) {
             .sidebar { position: fixed; left: 0; top: 0; height: 100%; transform: translateX(-100%); }
             .sidebar.open { transform: translateX(0); }
@@ -476,11 +302,7 @@
             .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; }
             .sidebar-overlay.active { display: block; }
             .message { max-width: 95%; }
-            .input-container { flex-direction: column; }
-            .send-btn { width: 100%; justify-content: center; }
-            .provider-grid { grid-template-columns: 1fr; }
         }
-
         .empty-chats { padding: 40px 20px; text-align: center; color: var(--text-muted); }
         .empty-chats-icon { font-size: 48px; opacity: 0.5; margin-bottom: 12px; }
     </style>
@@ -488,38 +310,30 @@
 <body>
     <div class="app">
         <div class="sidebar-overlay" id="sidebar-overlay"></div>
-
         <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <span class="logo">⚡ CustomGPT</span>
-            </div>
-            <button class="new-chat-btn" onclick="createNewChat()">
-                <span>+</span> New Chat
-            </button>
+            <div class="sidebar-header"><span class="logo">⚡ CustomGPT</span></div>
+            <button class="new-chat-btn" onclick="createNewChat()"><span>+</span> New Chat</button>
             <div class="chat-list" id="chat-list"></div>
             <div class="sidebar-footer">
-                <button class="settings-btn" onclick="openSettings()">
-                    <span>⚙️</span> Settings
-                </button>
+                <button class="settings-btn" onclick="openSettings()"><span>⚙️</span> Settings</button>
             </div>
         </aside>
-
         <main class="main">
             <header class="main-header">
                 <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
                 <span class="chat-title" id="chat-title">CustomGPT</span>
-                <span class="provider-badge" id="provider-badge">OpenAI</span>
-                <span class="model-badge" id="model-badge">gpt-4.1</span>
+                <div class="header-badges">
+                    <span class="provider-badge" id="provider-badge">OpenAI</span>
+                    <span class="model-badge" id="model-badge">gpt-4.1</span>
+                </div>
             </header>
-
             <div class="messages" id="messages">
                 <div class="welcome">
                     <div class="welcome-icon">🤖</div>
                     <h1>Welcome to CustomGPT</h1>
-                    <p>Multi-provider AI assistant with personas, context files, and full parameter control.</p>
+                    <p>Your local AI assistant with full control over prompts, context files, and generation parameters.</p>
                 </div>
             </div>
-
             <div class="input-area">
                 <div class="input-container">
                     <div class="input-wrapper">
@@ -538,29 +352,44 @@
                 <h2>⚙️ Settings</h2>
                 <button class="modal-close" onclick="closeSettings()">×</button>
             </div>
-
             <div class="modal-body">
                 <div class="modal-tabs">
                     <button class="modal-tab active" data-tab="provider">Provider</button>
                     <button class="modal-tab" data-tab="personas">Personas</button>
                     <button class="modal-tab" data-tab="params">Parameters</button>
                     <button class="modal-tab" data-tab="context">Context</button>
+                    <button class="modal-tab" data-tab="memory">Memory</button>
                 </div>
 
                 <!-- Provider Tab -->
                 <div class="tab-content active" id="tab-provider">
-                    <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 14px;">
-                        Select your AI provider and configure API keys.
-                    </p>
-
-                    <div class="provider-grid" id="provider-grid"></div>
-
                     <div class="form-group">
-                        <label>API Key for <span id="selected-provider-name">OpenAI</span></label>
-                        <input type="password" id="cfg-api-key" placeholder="Enter API key...">
-                        <div class="form-hint">Keys are stored locally on your Pi</div>
+                        <label>Provider</label>
+                        <select id="cfg-provider" onchange="onProviderChange()">
+                            <option value="openai">OpenAI</option>
+                            <option value="claude">Claude</option>
+                            <option value="gemini">Gemini</option>
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="lmstudio">LM Studio (Local)</option>
+                            <option value="runpod">RunPod</option>
+                        </select>
                     </div>
-
+                    <div class="form-group" id="api-key-group">
+                        <label>API Key</label>
+                        <input type="password" id="cfg-api-key" placeholder="Enter API key...">
+                        <div class="form-hint">Your API key is stored locally on the Pi</div>
+                    </div>
+                    <div class="form-group" id="lmstudio-url-group" style="display:none;">
+                        <label>LM Studio URL</label>
+                        <input type="text" id="cfg-lmstudio-url" placeholder="http://10.0.0.55:1234/v1">
+                        <div class="form-hint">Your computer's IP + LM Studio port. <button class="btn-secondary" style="padding:4px 8px;font-size:12px;margin-left:8px;" onclick="testLmStudio()">Test Connection</button></div>
+                        <div id="lmstudio-status" style="margin-top:8px;"></div>
+                    </div>
+                    <div class="form-group" id="runpod-url-group" style="display:none;">
+                        <label>RunPod Endpoint URL</label>
+                        <input type="text" id="cfg-runpod-url" placeholder="https://api.runpod.ai/v2/...">
+                        <div class="form-hint">OpenAI-compatible endpoint from RunPod</div>
+                    </div>
                     <div class="form-group">
                         <label>Model</label>
                         <select id="cfg-model"></select>
@@ -569,10 +398,6 @@
 
                 <!-- Personas Tab -->
                 <div class="tab-content" id="tab-personas">
-                    <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 14px;">
-                        Create up to 3 personas with custom system prompts. Select which one is active.
-                    </p>
-
                     <div id="personas-list"></div>
                 </div>
 
@@ -586,7 +411,6 @@
                         </div>
                         <div class="form-hint">Higher = more creative, Lower = more focused</div>
                     </div>
-
                     <div class="form-group">
                         <label>Top P</label>
                         <div class="slider-group">
@@ -594,12 +418,10 @@
                             <span class="slider-value" id="val-top-p">1.0</span>
                         </div>
                     </div>
-
                     <div class="form-group">
                         <label>Max Tokens</label>
                         <input type="number" id="cfg-max-tokens" min="100" max="128000" value="4096">
                     </div>
-
                     <div class="form-group">
                         <label>Presence Penalty</label>
                         <div class="slider-group">
@@ -607,7 +429,6 @@
                             <span class="slider-value" id="val-presence-penalty">0.0</span>
                         </div>
                     </div>
-
                     <div class="form-group">
                         <label>Frequency Penalty</label>
                         <div class="slider-group">
@@ -617,21 +438,61 @@
                     </div>
                 </div>
 
-                <!-- Context Files Tab -->
+                <!-- Context Tab -->
                 <div class="tab-content" id="tab-context">
                     <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 14px;">
-                        Add .txt files as persistent context for all conversations.
+                        Add .txt files to include as context in every conversation.
                     </p>
-
                     <div class="file-list" id="context-file-list"></div>
-
                     <div class="add-file-form">
                         <input type="text" id="new-file-name" placeholder="filename.txt">
                         <button class="add-file-btn" onclick="createContextFile()">+ Add</button>
                     </div>
                 </div>
-            </div>
 
+                <!-- Memory Tab -->
+                <div class="tab-content" id="tab-memory">
+                    <div class="memory-stats" id="memory-stats">
+                        <div class="memory-stat">
+                            <div class="memory-stat-value" id="memory-count">0</div>
+                            <div class="memory-stat-label">Memories</div>
+                        </div>
+                        <div class="memory-stat">
+                            <div class="memory-stat-value" id="memory-status-badge">-</div>
+                            <div class="memory-stat-label">Status</div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Memory System</label>
+                        <div class="toggle-group">
+                            <div class="toggle" id="memory-toggle" onclick="toggleMemory()"></div>
+                            <span id="memory-toggle-label">Enabled</span>
+                        </div>
+                        <div class="form-hint">When enabled, memories from past chats are injected into context</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Similarity Threshold</label>
+                        <div class="slider-group">
+                            <input type="range" id="cfg-memory-threshold" min="0.3" max="0.9" step="0.05" value="0.5" oninput="document.getElementById('val-memory-threshold').textContent=this.value">
+                            <span class="slider-value" id="val-memory-threshold">0.5</span>
+                        </div>
+                        <div class="form-hint">Higher = stricter matching (0.7 for precise, 0.5 for broader)</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Max Memories per Query</label>
+                        <div class="slider-group">
+                            <input type="range" id="cfg-memory-results" min="1" max="10" step="1" value="5" oninput="document.getElementById('val-memory-results').textContent=this.value">
+                            <span class="slider-value" id="val-memory-results">5</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Browse Memories</label>
+                        <div id="memory-list" style="max-height:300px;overflow-y:auto;margin-top:12px;"></div>
+                        <button class="btn-secondary" onclick="loadMemories()" style="margin-top:12px;">Refresh</button>
+                        <button class="btn-danger" onclick="clearAllMemories()" style="margin-top:12px;margin-left:8px;">Clear All</button>
+                    </div>
+                </div>
+            </div>
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closeSettings()">Cancel</button>
                 <button class="btn-primary" onclick="saveSettings()">Save Changes</button>
@@ -647,7 +508,7 @@
                 <button class="modal-close" onclick="closeFileEditor()">×</button>
             </div>
             <div class="modal-body">
-                <textarea id="file-editor-content" style="min-height: 300px; font-family: 'JetBrains Mono', monospace;"></textarea>
+                <textarea id="file-editor-content" style="min-height:300px;font-family:'JetBrains Mono',monospace;"></textarea>
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="closeFileEditor()">Cancel</button>
@@ -657,36 +518,28 @@
     </div>
 
     <script>
-        // State
         let currentChatId = null;
         let config = {};
         let providers = {};
         let contextFiles = [];
         let editingFile = null;
-        let selectedProvider = 'openai';
-
         const API = '';
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', async () => {
-            await loadProviders();
-            await loadConfig();
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProviders();
+            loadConfig();
             loadChats();
             setupTabs();
             setupSliders();
         });
 
-        // Load providers
         async function loadProviders() {
             try {
                 const res = await fetch(API + '/api/providers');
                 providers = await res.json();
-            } catch (e) {
-                console.error('Failed to load providers:', e);
-            }
+            } catch (e) { console.error('Failed to load providers:', e); }
         }
 
-        // Tab switching
         function setupTabs() {
             document.querySelectorAll('.modal-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
@@ -694,59 +547,38 @@
                     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                     tab.classList.add('active');
                     document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+                    if (tab.dataset.tab === 'memory') { loadMemoryStats(); loadMemories(); }
                 });
             });
         }
 
-        // Slider value display
         function setupSliders() {
-            const sliders = ['temperature', 'top-p', 'presence-penalty', 'frequency-penalty'];
-            sliders.forEach(id => {
+            ['temperature', 'top-p', 'presence-penalty', 'frequency-penalty'].forEach(id => {
                 const slider = document.getElementById('cfg-' + id);
                 const display = document.getElementById('val-' + id);
                 if (slider && display) {
-                    slider.addEventListener('input', () => {
-                        display.textContent = parseFloat(slider.value).toFixed(1);
-                    });
+                    slider.addEventListener('input', () => { display.textContent = parseFloat(slider.value).toFixed(1); });
                 }
             });
         }
 
-        // Load config
         async function loadConfig() {
             try {
                 const res = await fetch(API + '/api/config');
                 config = await res.json();
-                selectedProvider = config.provider || 'openai';
                 updateConfigUI();
-                updateHeaderBadges();
-            } catch (e) {
-                console.error('Failed to load config:', e);
-            }
-        }
-
-        function updateHeaderBadges() {
-            const providerName = providers[config.provider]?.name || 'OpenAI';
-            document.getElementById('provider-badge').textContent = providerName;
-            document.getElementById('model-badge').textContent = config.model || 'gpt-4.1';
+                document.getElementById('provider-badge').textContent = providers[config.provider]?.name || config.provider;
+                document.getElementById('model-badge').textContent = config.model || 'gpt-4.1';
+            } catch (e) { console.error('Failed to load config:', e); }
         }
 
         function updateConfigUI() {
-            // Provider grid
-            renderProviderGrid();
-            
-            // Model select
-            updateModelSelect();
-            
-            // API key
-            const maskedKey = config.api_keys_masked?.[selectedProvider] || '';
+            document.getElementById('cfg-provider').value = config.provider || 'openai';
+            onProviderChange();
+            const maskedKey = config.api_keys_masked?.[config.provider] || '';
             document.getElementById('cfg-api-key').value = maskedKey;
-            document.getElementById('selected-provider-name').textContent = providers[selectedProvider]?.name || selectedProvider;
-            
-            // Personas
-            renderPersonas();
-            
-            // Parameters
+            document.getElementById('cfg-lmstudio-url').value = config.lmstudio_url || 'http://10.0.0.55:1234/v1';
+            document.getElementById('cfg-runpod-url').value = config.runpod_url || '';
             document.getElementById('cfg-temperature').value = config.temperature || 0.7;
             document.getElementById('val-temperature').textContent = (config.temperature || 0.7).toFixed(1);
             document.getElementById('cfg-top-p').value = config.top_p || 1.0;
@@ -756,114 +588,145 @@
             document.getElementById('val-presence-penalty').textContent = (config.presence_penalty || 0).toFixed(1);
             document.getElementById('cfg-frequency-penalty').value = config.frequency_penalty || 0;
             document.getElementById('val-frequency-penalty').textContent = (config.frequency_penalty || 0).toFixed(1);
+            document.getElementById('cfg-memory-threshold').value = config.memory_similarity_threshold || 0.5;
+            document.getElementById('val-memory-threshold').textContent = config.memory_similarity_threshold || 0.5;
+            document.getElementById('cfg-memory-results').value = config.memory_results || 5;
+            document.getElementById('val-memory-results').textContent = config.memory_results || 5;
+            const memToggle = document.getElementById('memory-toggle');
+            if (config.memory_enabled !== false) { memToggle.classList.add('active'); }
+            else { memToggle.classList.remove('active'); }
+            document.getElementById('memory-toggle-label').textContent = config.memory_enabled !== false ? 'Enabled' : 'Disabled';
+            renderPersonas();
         }
 
-        function renderProviderGrid() {
-            const grid = document.getElementById('provider-grid');
-            grid.innerHTML = Object.entries(providers).map(([key, provider]) => {
-                const isActive = key === selectedProvider;
-                const hasKey = config.api_keys_masked?.[key] && config.api_keys_masked[key] !== '';
-                return `
-                    <div class="provider-card ${isActive ? 'active' : ''}" onclick="selectProvider('${key}')">
-                        <div class="provider-card-name">${provider.name}</div>
-                        <div class="provider-card-status ${hasKey ? 'configured' : ''}">${hasKey ? '✓ Configured' : 'Not configured'}</div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function selectProvider(providerKey) {
-            selectedProvider = providerKey;
-            config.provider = providerKey;
-            
-            // Update UI
-            document.querySelectorAll('.provider-card').forEach(card => card.classList.remove('active'));
-            event.currentTarget.classList.add('active');
-            
-            // Update API key field
-            const maskedKey = config.api_keys_masked?.[selectedProvider] || '';
+        function onProviderChange() {
+            const provider = document.getElementById('cfg-provider').value;
+            const modelSelect = document.getElementById('cfg-model');
+            const models = providers[provider]?.models || [];
+            modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
+            if (config.provider === provider && config.model) {
+                modelSelect.value = config.model;
+            }
+            document.getElementById('api-key-group').style.display = provider === 'lmstudio' ? 'none' : 'block';
+            document.getElementById('lmstudio-url-group').style.display = provider === 'lmstudio' ? 'block' : 'none';
+            document.getElementById('runpod-url-group').style.display = provider === 'runpod' ? 'block' : 'none';
+            const maskedKey = config.api_keys_masked?.[provider] || '';
             document.getElementById('cfg-api-key').value = maskedKey;
-            document.getElementById('selected-provider-name').textContent = providers[selectedProvider]?.name || selectedProvider;
-            
-            // Update model select
-            updateModelSelect();
         }
 
-        function updateModelSelect() {
-            const select = document.getElementById('cfg-model');
-            const providerModels = providers[selectedProvider]?.models || [];
-            
-            select.innerHTML = providerModels.map(model => 
-                `<option value="${model}" ${model === config.model ? 'selected' : ''}>${model}</option>`
-            ).join('');
-            
-            // If current model not in list, select first
-            if (!providerModels.includes(config.model) && providerModels.length > 0) {
-                config.model = providerModels[0];
-                select.value = config.model;
+        async function testLmStudio() {
+            const statusDiv = document.getElementById('lmstudio-status');
+            statusDiv.innerHTML = '<span style="color:var(--warning)">Testing...</span>';
+            try {
+                const res = await fetch(API + '/api/lmstudio/models');
+                const data = await res.json();
+                if (data.status === 'connected') {
+                    statusDiv.innerHTML = `<span class="status-badge active">✓ Connected</span> Models: ${data.models.join(', ')}`;
+                    const modelSelect = document.getElementById('cfg-model');
+                    if (data.models.length > 0) {
+                        modelSelect.innerHTML = data.models.map(m => `<option value="${m}">${m}</option>`).join('');
+                    }
+                } else {
+                    statusDiv.innerHTML = `<span class="status-badge offline">✗ ${data.status}</span> ${data.error || ''}`;
+                }
+            } catch (e) {
+                statusDiv.innerHTML = `<span class="status-badge offline">✗ Error</span> ${e.message}`;
             }
         }
 
         function renderPersonas() {
-            const container = document.getElementById('personas-list');
-            const personas = config.personas || [
-                {name: 'Assistant', prompt: 'You are a helpful AI assistant.', active: true},
-                {name: 'Persona 2', prompt: '', active: false},
-                {name: 'Persona 3', prompt: '', active: false}
-            ];
-            
-            container.innerHTML = personas.map((p, idx) => `
+            const personas = config.personas || [{name:'Assistant',prompt:'You are a helpful AI assistant.',active:true},{name:'Persona 2',prompt:'',active:false},{name:'Persona 3',prompt:'',active:false}];
+            document.getElementById('personas-list').innerHTML = personas.map((p, i) => `
                 <div class="persona-card ${p.active ? 'active' : ''}">
                     <div class="persona-header">
-                        <input type="radio" name="active-persona" class="persona-radio" 
-                               ${p.active ? 'checked' : ''} 
-                               onchange="setActivePersona(${idx})">
-                        <input type="text" class="persona-name-input" 
-                               value="${escapeHtml(p.name)}" 
-                               data-idx="${idx}"
-                               onchange="updatePersonaName(${idx}, this.value)">
+                        <input type="radio" name="persona" class="persona-radio" ${p.active ? 'checked' : ''} onchange="setActivePersona(${i})">
+                        <input type="text" class="persona-name" value="${escapeHtml(p.name)}" data-index="${i}" onchange="updatePersonaName(${i}, this.value)">
                     </div>
-                    <textarea class="persona-prompt" 
-                              placeholder="Enter system prompt..."
-                              data-idx="${idx}"
-                              onchange="updatePersonaPrompt(${idx}, this.value)">${escapeHtml(p.prompt)}</textarea>
+                    <textarea class="persona-prompt" data-index="${i}" onchange="updatePersonaPrompt(${i}, this.value)" placeholder="Enter system prompt...">${escapeHtml(p.prompt)}</textarea>
                 </div>
             `).join('');
         }
 
-        function setActivePersona(idx) {
+        function setActivePersona(index) {
             config.personas = config.personas || [];
-            config.personas.forEach((p, i) => p.active = (i === idx));
+            config.personas.forEach((p, i) => p.active = (i === index));
             renderPersonas();
         }
 
-        function updatePersonaName(idx, name) {
-            if (config.personas && config.personas[idx]) {
-                config.personas[idx].name = name;
+        function updatePersonaName(index, name) { if (config.personas?.[index]) config.personas[index].name = name; }
+        function updatePersonaPrompt(index, prompt) { if (config.personas?.[index]) config.personas[index].prompt = prompt; }
+
+        function toggleMemory() {
+            const toggle = document.getElementById('memory-toggle');
+            toggle.classList.toggle('active');
+            document.getElementById('memory-toggle-label').textContent = toggle.classList.contains('active') ? 'Enabled' : 'Disabled';
+        }
+
+        async function loadMemoryStats() {
+            try {
+                const res = await fetch(API + '/api/memory/stats');
+                const data = await res.json();
+                document.getElementById('memory-count').textContent = data.count || 0;
+                document.getElementById('memory-status-badge').innerHTML = data.enabled 
+                    ? '<span class="status-badge active">Active</span>' 
+                    : '<span class="status-badge offline">Disabled</span>';
+            } catch (e) { console.error('Failed to load memory stats:', e); }
+        }
+
+        async function loadMemories() {
+            const list = document.getElementById('memory-list');
+            list.innerHTML = '<div style="color:var(--text-muted)">Loading...</div>';
+            try {
+                const res = await fetch(API + '/api/memory/all?limit=20');
+                const data = await res.json();
+                if (!data.memories || data.memories.length === 0) {
+                    list.innerHTML = '<div style="color:var(--text-muted)">No memories yet.</div>';
+                    return;
+                }
+                list.innerHTML = data.memories.map(m => `
+                    <div class="memory-item">
+                        <div class="memory-header">
+                            <span class="memory-meta">${m.timestamp ? new Date(m.timestamp).toLocaleString() : 'Unknown'}</span>
+                            <button class="file-btn" onclick="deleteMemory('${m.id}')" title="Delete">🗑️</button>
+                        </div>
+                        <div class="memory-content">${escapeHtml(m.content.substring(0, 200))}${m.content.length > 200 ? '...' : ''}</div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                list.innerHTML = `<div style="color:var(--accent)">Error: ${e.message}</div>`;
             }
         }
 
-        function updatePersonaPrompt(idx, prompt) {
-            if (config.personas && config.personas[idx]) {
-                config.personas[idx].prompt = prompt;
-            }
+        async function deleteMemory(id) {
+            if (!confirm('Delete this memory?')) return;
+            try {
+                await fetch(API + '/api/memory/' + id, { method: 'DELETE' });
+                loadMemories();
+                loadMemoryStats();
+            } catch (e) { alert('Failed to delete: ' + e.message); }
         }
 
-        // Load chats
+        async function clearAllMemories() {
+            if (!confirm('Delete ALL memories? This cannot be undone.')) return;
+            try {
+                await fetch(API + '/api/memory/clear', { method: 'POST' });
+                loadMemories();
+                loadMemoryStats();
+            } catch (e) { alert('Failed to clear: ' + e.message); }
+        }
+
         async function loadChats() {
             try {
                 const res = await fetch(API + '/api/chats');
                 const chats = await res.json();
                 renderChatList(chats);
-            } catch (e) {
-                console.error('Failed to load chats:', e);
-            }
+            } catch (e) { console.error('Failed to load chats:', e); }
         }
 
         function renderChatList(chats) {
             const list = document.getElementById('chat-list');
             if (chats.length === 0) {
-                list.innerHTML = `<div class="empty-chats"><div class="empty-chats-icon">💬</div><p>No chats yet</p></div>`;
+                list.innerHTML = '<div class="empty-chats"><div class="empty-chats-icon">💬</div><p>No chats yet</p></div>';
                 return;
             }
             list.innerHTML = chats.map(chat => `
@@ -874,23 +737,16 @@
             `).join('');
         }
 
-        // Chat operations
         async function createNewChat() {
             try {
-                const res = await fetch(API + '/api/chats', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({title: 'New Chat'})
-                });
+                const res = await fetch(API + '/api/chats', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'New Chat' }) });
                 const chat = await res.json();
                 currentChatId = chat.id;
                 loadChats();
                 clearMessages();
                 document.getElementById('chat-title').textContent = chat.title;
                 closeSidebar();
-            } catch (e) {
-                console.error('Failed to create chat:', e);
-            }
+            } catch (e) { console.error('Failed to create chat:', e); }
         }
 
         async function loadChat(chatId) {
@@ -902,61 +758,36 @@
                 renderMessages(data.messages);
                 loadChats();
                 closeSidebar();
-            } catch (e) {
-                console.error('Failed to load chat:', e);
-            }
+            } catch (e) { console.error('Failed to load chat:', e); }
         }
 
         async function deleteChat(chatId) {
             if (!confirm('Delete this chat?')) return;
             try {
-                await fetch(API + '/api/chats/' + chatId, {method: 'DELETE'});
-                if (currentChatId === chatId) {
-                    currentChatId = null;
-                    clearMessages();
-                    document.getElementById('chat-title').textContent = 'CustomGPT';
-                }
+                await fetch(API + '/api/chats/' + chatId, { method: 'DELETE' });
+                if (currentChatId === chatId) { currentChatId = null; clearMessages(); document.getElementById('chat-title').textContent = 'CustomGPT'; }
                 loadChats();
-            } catch (e) {
-                console.error('Failed to delete chat:', e);
-            }
+            } catch (e) { console.error('Failed to delete chat:', e); }
         }
 
-        // Messages
         function renderMessages(messages) {
             const container = document.getElementById('messages');
             if (messages.length === 0) {
-                container.innerHTML = `<div class="welcome"><div class="welcome-icon">💬</div><h1>Start a conversation</h1><p>Type your message below.</p></div>`;
+                container.innerHTML = '<div class="welcome"><div class="welcome-icon">💬</div><h1>Start a conversation</h1><p>Type your message below to begin chatting.</p></div>';
                 return;
             }
-
-            window.chatMessages = messages;
-
-            container.innerHTML = messages.map((msg, idx) => {
-                const isLast = idx === messages.length - 1;
-                const isSecondLast = idx === messages.length - 2;
-                const showEdit = msg.role === 'user' && isSecondLast && messages.length >= 2;
-                const showRegen = msg.role === 'assistant' && isLast;
-
-                return `
-                <div class="message-wrapper ${msg.role}">
-                    <div class="message ${msg.role}" data-idx="${idx}">${formatMessage(msg.content)}</div>
-                    ${showEdit ? `<div class="message-actions visible"><button class="message-action-btn" onclick="startEdit(${idx})">✏️ Edit</button></div>` : ''}
-                    ${showRegen ? `<div class="message-actions visible"><button class="message-action-btn" onclick="regenerateResponse()">🔄 Regenerate</button></div>` : ''}
-                </div>`;
-            }).join('');
-
+            container.innerHTML = messages.map((msg, i) => `
+                <div class="message ${msg.role}">
+                    ${formatMessage(msg.content)}
+                    ${msg.role === 'user' && i === messages.length - 2 ? '<div class="message-actions"><button class="msg-action-btn" onclick="editLastMessage()">✏️ Edit</button></div>' : ''}
+                    ${msg.role === 'assistant' && i === messages.length - 1 ? '<div class="message-actions"><button class="msg-action-btn" onclick="regenerateResponse()">🔄 Regen</button></div>' : ''}
+                </div>
+            `).join('');
             container.scrollTop = container.scrollHeight;
         }
 
         function clearMessages() {
-            window.chatMessages = [];
-            document.getElementById('messages').innerHTML = `
-                <div class="welcome">
-                    <div class="welcome-icon">🤖</div>
-                    <h1>Welcome to CustomGPT</h1>
-                    <p>Multi-provider AI assistant with personas, context files, and full parameter control.</p>
-                </div>`;
+            document.getElementById('messages').innerHTML = '<div class="welcome"><div class="welcome-icon">🤖</div><h1>Welcome to CustomGPT</h1><p>Your local AI assistant with full control over prompts, context files, and generation parameters.</p></div>';
         }
 
         function formatMessage(text) {
@@ -968,288 +799,149 @@
             return text;
         }
 
-        // Edit & Regenerate
-        function startEdit(idx) {
-            const messages = window.chatMessages;
-            if (!messages || !messages[idx]) return;
-
-            const originalContent = messages[idx].content;
-            const wrapper = document.querySelector(`.message[data-idx="${idx}"]`).parentElement;
-            const msgEl = wrapper.querySelector('.message');
-            const actionsEl = wrapper.querySelector('.message-actions');
-
-            msgEl.style.display = 'none';
-            actionsEl.style.display = 'none';
-
-            const editForm = document.createElement('div');
-            editForm.className = 'edit-form';
-            editForm.innerHTML = `
-                <textarea class="edit-textarea" id="edit-textarea-${idx}">${escapeHtml(originalContent)}</textarea>
-                <div style="display: flex; gap: 8px; margin-top: 8px;">
-                    <button class="edit-btn save" onclick="saveEdit(${idx})">Save & Send</button>
-                    <button class="edit-btn cancel" onclick="cancelEdit(${idx})">Cancel</button>
-                </div>`;
-            wrapper.appendChild(editForm);
-
-            const textarea = document.getElementById(`edit-textarea-${idx}`);
-            textarea.focus();
-            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-        }
-
-        function cancelEdit(idx) {
-            const wrapper = document.querySelector(`.message[data-idx="${idx}"]`).parentElement;
-            const msgEl = wrapper.querySelector('.message');
-            const actionsEl = wrapper.querySelector('.message-actions');
-            const editForm = wrapper.querySelector('.edit-form');
-
-            if (editForm) editForm.remove();
-            msgEl.style.display = '';
-            actionsEl.style.display = '';
-        }
-
-        async function saveEdit(idx) {
-            const textarea = document.getElementById(`edit-textarea-${idx}`);
-            const newContent = textarea.value.trim();
-            if (!newContent) return;
-
-            try {
-                await fetch(API + '/api/chats/' + currentChatId + '/delete-last', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({count: 2})
-                });
-
-                document.getElementById('message-input').value = newContent;
-                await sendMessage();
-            } catch (e) {
-                console.error('Failed to save edit:', e);
-                alert('Failed to save edit: ' + e.message);
-            }
-        }
-
-        async function regenerateResponse() {
-            if (!window.chatMessages || window.chatMessages.length < 2) return;
-
-            const lastUserMsg = window.chatMessages[window.chatMessages.length - 2];
-            if (lastUserMsg.role !== 'user') return;
-
-            try {
-                await fetch(API + '/api/chats/' + currentChatId + '/delete-last', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({count: 1})
-                });
-
-                document.getElementById('message-input').value = lastUserMsg.content;
-                await sendMessage();
-            } catch (e) {
-                console.error('Failed to regenerate:', e);
-                alert('Failed to regenerate: ' + e.message);
-            }
-        }
-
-        // Send message
         async function sendMessage() {
             const input = document.getElementById('message-input');
             const message = input.value.trim();
             if (!message) return;
-
             if (!currentChatId) {
-                const res = await fetch(API + '/api/chats', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({title: 'New Chat'})
-                });
+                const res = await fetch(API + '/api/chats', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: 'New Chat' }) });
                 const chat = await res.json();
                 currentChatId = chat.id;
                 document.getElementById('chat-title').textContent = chat.title;
                 loadChats();
             }
-
             const msgContainer = document.getElementById('messages');
-            if (msgContainer.querySelector('.welcome')) {
-                msgContainer.innerHTML = '';
-            }
-
+            if (msgContainer.querySelector('.welcome')) msgContainer.innerHTML = '';
             msgContainer.innerHTML += `<div class="message user">${formatMessage(escapeHtml(message))}</div>`;
             input.value = '';
             autoResize(input);
             msgContainer.scrollTop = msgContainer.scrollHeight;
-
             const typingId = 'typing-' + Date.now();
             msgContainer.innerHTML += `<div class="message assistant" id="${typingId}"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
             msgContainer.scrollTop = msgContainer.scrollHeight;
-
             const sendBtn = document.getElementById('send-btn');
             sendBtn.disabled = true;
-
             try {
-                const response = await fetch(API + '/api/chats/' + currentChatId + '/send', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({message})
-                });
-
+                const response = await fetch(API + '/api/chats/' + currentChatId + '/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }) });
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let fullResponse = '';
                 let typingEl = document.getElementById(typingId);
-
                 while (true) {
-                    const {done, value} = await reader.read();
+                    const { done, value } = await reader.read();
                     if (done) break;
-
                     const text = decoder.decode(value);
                     const lines = text.split('\n');
-
                     for (const line of lines) {
                         if (line.startsWith('data: ')) {
                             try {
                                 const data = JSON.parse(line.slice(6));
-                                if (data.content) {
-                                    fullResponse += data.content;
-                                    typingEl.innerHTML = formatMessage(fullResponse);
-                                    msgContainer.scrollTop = msgContainer.scrollHeight;
-                                } else if (data.error) {
-                                    typingEl.innerHTML = `<span style="color: var(--accent);">Error: ${escapeHtml(data.error)}</span>`;
-                                }
+                                if (data.content) { fullResponse += data.content; typingEl.innerHTML = formatMessage(fullResponse); msgContainer.scrollTop = msgContainer.scrollHeight; }
+                                else if (data.error) { typingEl.innerHTML = `<span style="color:var(--accent)">Error: ${escapeHtml(data.error)}</span>`; }
                             } catch (e) {}
                         }
                     }
                 }
-
                 if (msgContainer.querySelectorAll('.message.user').length === 1) {
-                    fetch(API + '/api/chats/' + currentChatId + '/auto-title', {method: 'POST'})
+                    fetch(API + '/api/chats/' + currentChatId + '/auto-title', { method: 'POST' })
                         .then(res => res.json())
-                        .then(data => {
-                            if (data.title) {
-                                document.getElementById('chat-title').textContent = data.title;
-                                loadChats();
-                            }
-                        });
+                        .then(data => { if (data.title) { document.getElementById('chat-title').textContent = data.title; loadChats(); } });
                 }
-
-                await loadChat(currentChatId);
-
-            } catch (e) {
-                document.getElementById(typingId).innerHTML = `<span style="color: var(--accent);">Error: ${escapeHtml(e.message)}</span>`;
-            }
-
+            } catch (e) { document.getElementById(typingId).innerHTML = `<span style="color:var(--accent)">Error: ${escapeHtml(e.message)}</span>`; }
             sendBtn.disabled = false;
         }
 
-        function handleKeyDown(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
+        async function editLastMessage() {
+            const messages = document.querySelectorAll('.message.user');
+            if (messages.length === 0) return;
+            const lastUserMsg = messages[messages.length - 1];
+            const text = lastUserMsg.innerText;
+            await fetch(API + '/api/chats/' + currentChatId + '/delete-last', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ count: 2 }) });
+            document.getElementById('message-input').value = text;
+            loadChat(currentChatId);
         }
 
-        function autoResize(el) {
-            el.style.height = 'auto';
-            el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+        async function regenerateResponse() {
+            const messages = document.querySelectorAll('.message.user');
+            if (messages.length === 0) return;
+            const lastUserMsg = messages[messages.length - 1].innerText;
+            await fetch(API + '/api/chats/' + currentChatId + '/delete-last', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ count: 2 }) });
+            document.getElementById('message-input').value = lastUserMsg;
+            sendMessage();
         }
 
-        // Settings
-        function openSettings() {
-            document.getElementById('settings-modal').classList.add('active');
-            loadContextFiles();
-        }
+        function handleKeyDown(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+        function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 200) + 'px'; }
 
-        function closeSettings() {
-            document.getElementById('settings-modal').classList.remove('active');
-        }
+        function openSettings() { document.getElementById('settings-modal').classList.add('active'); loadContextFiles(); loadMemoryStats(); }
+        function closeSettings() { document.getElementById('settings-modal').classList.remove('active'); }
 
         async function saveSettings() {
-            const apiKeyInput = document.getElementById('cfg-api-key').value;
-            
+            const provider = document.getElementById('cfg-provider').value;
             const newConfig = {
-                provider: selectedProvider,
-                api_keys: {},
+                provider: provider,
                 model: document.getElementById('cfg-model').value,
-                personas: config.personas,
                 temperature: parseFloat(document.getElementById('cfg-temperature').value),
                 top_p: parseFloat(document.getElementById('cfg-top-p').value),
                 max_tokens: parseInt(document.getElementById('cfg-max-tokens').value),
                 presence_penalty: parseFloat(document.getElementById('cfg-presence-penalty').value),
                 frequency_penalty: parseFloat(document.getElementById('cfg-frequency-penalty').value),
-                context_files: getSelectedContextFiles()
+                context_files: getSelectedContextFiles(),
+                personas: config.personas,
+                memory_enabled: document.getElementById('memory-toggle').classList.contains('active'),
+                memory_similarity_threshold: parseFloat(document.getElementById('cfg-memory-threshold').value),
+                memory_results: parseInt(document.getElementById('cfg-memory-results').value),
+                lmstudio_url: document.getElementById('cfg-lmstudio-url').value,
+                runpod_url: document.getElementById('cfg-runpod-url').value,
+                api_keys: {}
             };
-
-            if (apiKeyInput && !apiKeyInput.startsWith('***')) {
-                newConfig.api_keys[selectedProvider] = apiKeyInput;
-            }
-
+            const apiKey = document.getElementById('cfg-api-key').value;
+            if (apiKey && !apiKey.startsWith('***')) { newConfig.api_keys[provider] = apiKey; }
             try {
-                await fetch(API + '/api/config', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(newConfig)
-                });
+                await fetch(API + '/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newConfig) });
+                document.getElementById('provider-badge').textContent = providers[newConfig.provider]?.name || newConfig.provider;
+                document.getElementById('model-badge').textContent = newConfig.model;
                 closeSettings();
                 loadConfig();
-            } catch (e) {
-                alert('Failed to save settings: ' + e.message);
-            }
+            } catch (e) { alert('Failed to save settings: ' + e.message); }
         }
 
-        // Context files
         async function loadContextFiles() {
             try {
                 const res = await fetch(API + '/api/context-files');
                 contextFiles = await res.json();
                 renderContextFiles();
-            } catch (e) {
-                console.error('Failed to load context files:', e);
-            }
+            } catch (e) { console.error('Failed to load context files:', e); }
         }
 
         function renderContextFiles() {
             const list = document.getElementById('context-file-list');
             const selected = config.context_files || [];
-
-            if (contextFiles.length === 0) {
-                list.innerHTML = '<p style="color: var(--text-muted); font-size: 14px;">No context files yet.</p>';
-                return;
-            }
-
+            if (contextFiles.length === 0) { list.innerHTML = '<p style="color:var(--text-muted);font-size:14px;">No context files yet.</p>'; return; }
             list.innerHTML = contextFiles.map(file => `
                 <div class="file-item ${selected.includes(file.name) ? 'selected' : ''}">
                     <input type="checkbox" class="file-checkbox" data-filename="${file.name}" ${selected.includes(file.name) ? 'checked' : ''}>
                     <span class="file-name">${escapeHtml(file.name)}</span>
                     <span class="file-size">${formatFileSize(file.size)}</span>
-                    <div class="file-actions">
-                        <button class="file-btn" onclick="editContextFile('${file.name}')" title="Edit">✏️</button>
-                        <button class="file-btn" onclick="deleteContextFile('${file.name}')" title="Delete">🗑️</button>
-                    </div>
+                    <button class="file-btn" onclick="editContextFile('${file.name}')" title="Edit">✏️</button>
+                    <button class="file-btn" onclick="deleteContextFile('${file.name}')" title="Delete">🗑️</button>
                 </div>
             `).join('');
         }
 
-        function getSelectedContextFiles() {
-            const checkboxes = document.querySelectorAll('.file-checkbox:checked');
-            return Array.from(checkboxes).map(cb => cb.dataset.filename);
-        }
+        function getSelectedContextFiles() { return Array.from(document.querySelectorAll('.file-checkbox:checked')).map(cb => cb.dataset.filename); }
 
         async function createContextFile() {
             const nameInput = document.getElementById('new-file-name');
             let name = nameInput.value.trim();
             if (!name) return;
-
             if (!name.endsWith('.txt')) name += '.txt';
-
             try {
-                await fetch(API + '/api/context-files/' + name, {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({content: ''})
-                });
+                await fetch(API + '/api/context-files/' + name, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: '' }) });
                 nameInput.value = '';
                 loadContextFiles();
                 editContextFile(name);
-            } catch (e) {
-                alert('Failed to create file: ' + e.message);
-            }
+            } catch (e) { alert('Failed to create file: ' + e.message); }
         }
 
         async function editContextFile(filename) {
@@ -1260,68 +952,35 @@
                 document.getElementById('file-editor-title').textContent = filename;
                 document.getElementById('file-editor-content').value = data.content;
                 document.getElementById('file-editor-modal').classList.add('active');
-            } catch (e) {
-                alert('Failed to load file: ' + e.message);
-            }
+            } catch (e) { alert('Failed to load file: ' + e.message); }
         }
 
-        function closeFileEditor() {
-            document.getElementById('file-editor-modal').classList.remove('active');
-            editingFile = null;
-        }
+        function closeFileEditor() { document.getElementById('file-editor-modal').classList.remove('active'); editingFile = null; }
 
         async function saveFileContent() {
             if (!editingFile) return;
             const content = document.getElementById('file-editor-content').value;
-
             try {
-                await fetch(API + '/api/context-files/' + editingFile, {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({content})
-                });
+                await fetch(API + '/api/context-files/' + editingFile, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) });
                 closeFileEditor();
                 loadContextFiles();
-            } catch (e) {
-                alert('Failed to save file: ' + e.message);
-            }
+            } catch (e) { alert('Failed to save file: ' + e.message); }
         }
 
         async function deleteContextFile(filename) {
             if (!confirm('Delete ' + filename + '?')) return;
             try {
-                await fetch(API + '/api/context-files/' + filename, {method: 'DELETE'});
+                await fetch(API + '/api/context-files/' + filename, { method: 'DELETE' });
                 loadContextFiles();
-            } catch (e) {
-                alert('Failed to delete file: ' + e.message);
-            }
+            } catch (e) { alert('Failed to delete file: ' + e.message); }
         }
 
-        // Sidebar
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
-            document.getElementById('sidebar-overlay').classList.toggle('active');
-        }
-
-        function closeSidebar() {
-            document.getElementById('sidebar').classList.remove('open');
-            document.getElementById('sidebar-overlay').classList.remove('active');
-        }
-
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebar-overlay').classList.toggle('active'); }
+        function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebar-overlay').classList.remove('active'); }
         document.getElementById('sidebar-overlay').addEventListener('click', closeSidebar);
 
-        // Utilities
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-        }
+        function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+        function formatFileSize(bytes) { if (bytes < 1024) return bytes + ' B'; if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB'; return (bytes/(1024*1024)).toFixed(1) + ' MB'; }
     </script>
 </body>
 </html>
