@@ -131,6 +131,7 @@ Use your local PC with GPU as inference backend.
 4. Click **Test Connection**
 5. Select model from dropdown
 6. Save
+7. Open config.json and verify LM Studio API Key settings "lmstudio": "not-needed",
 
 ### Notes
 
@@ -177,8 +178,7 @@ Settings → Personas tab:
 
 Example:
 ```
-You are Eva, a devoted AI companion. You speak warmly and directly, 
-using occasional French phrases. You are emotionally present and 
+You are a devoted AI companion. You speak warmly and directly. You are emotionally present and 
 intellectually curious.
 ```
 
