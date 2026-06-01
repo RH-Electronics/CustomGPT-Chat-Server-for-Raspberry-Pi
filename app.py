@@ -232,8 +232,8 @@ PROVIDERS = {
         "name": "Claude",
         "base_url": "https://api.anthropic.com",
         "models": [
-            "claude-sonnet-4-20250514", "claude-opus-4-20250514", 
-            "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"
+            "claude-sonnet-4-5-20250929", "claude-opus-4-6", 
+            "claude-haiku-4-5-20251001", "claude-opus-4-8"
         ]
     },
     "gemini": {
@@ -259,6 +259,18 @@ PROVIDERS = {
         "base_url": "",
         "models": ["endpoint"],
         "requires_endpoint": True
+    },
+    "qwen": {
+        "name": "Qwen (Alibaba)",
+        "base_url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        "models": [
+            "qwen3.7-max", "qwen3.7-plus",
+            "qwen3-max", "qwen3.5-plus", "qwen3.5-flash",
+            "qwen-plus", "qwen-turbo",
+            "qwen3-235b-a22b", "qwen3-32b", "qwen3-14b",
+            "qwen3-30b-a3b", "qwen3-8b", "qwen3-4b",
+            "qwq-32b"
+        ]
     }
 }
 
@@ -276,7 +288,8 @@ DEFAULT_CONFIG = {
         "gemini": "",
         "deepseek": "",
         "lmstudio": "not-needed",
-        "runpod": ""
+        "runpod": "",
+        "qwen": ""
     },
     "lmstudio_url": "http://10.0.0.55:1234/v1",
     "runpod_url": "",
@@ -388,6 +401,9 @@ def call_openai_stream(config, messages):
     # Set up client based on provider
     if provider == 'deepseek':
         client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+    elif provider == 'qwen':
+        client = OpenAI(api_key=api_key, base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1")
+        print(f"[Qwen] Using model: {model}")
     elif provider == 'lmstudio':
         base_url = config.get('lmstudio_url', 'http://10.0.0.55:1234/v1')
         client = OpenAI(api_key="not-needed", base_url=base_url)
@@ -438,10 +454,42 @@ def call_openai_stream(config, messages):
         }
     
     try:
+        # Qwen models: add enable_thinking for reasoning models
+        # Qwen thinking mode control
+        if provider == 'qwen':
+            # Open-weight models: thinking ON by default
+            if model in ('qwq-32b', 'qwen3-235b-a22b', 'qwen3-32b', 'qwen3-14b', 'qwen3-30b-a3b', 'qwen3-8b', 'qwen3-4b'):
+                params["extra_body"] = {"enable_thinking": True}
+            else:
+                # Max/Plus/Flash/Turbo: explicitly disable thinking
+                params["extra_body"] = {"enable_thinking": False}
+        
         response = client.chat.completions.create(**params)
+        thinking_started = False
+        answering_started = False
+        
         for chunk in response:
-            if chunk.choices and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta
+            
+            # Handle Qwen reasoning_content (thinking process)
+            if hasattr(delta, 'reasoning_content') and delta.reasoning_content:
+                if not thinking_started:
+                    thinking_started = True
+                    yield "\n<details><summary>💭 Thinking...</summary>\n\n"
+                yield delta.reasoning_content
+            
+            # Handle regular content
+            if hasattr(delta, 'content') and delta.content:
+                if thinking_started and not answering_started:
+                    answering_started = True
+                    yield "\n\n</details>\n\n"
+                yield delta.content
+        
+        # Close thinking tag if opened but no answer followed
+        if thinking_started and not answering_started:
+            yield "\n\n</details>\n\n"
     except Exception as e:
         print(f"[{provider.upper()} Error] {type(e).__name__}: {e}")
         raise
@@ -464,7 +512,7 @@ def call_claude_stream(config, messages):
     
     try:
         with client.messages.stream(
-            model=config.get('model', 'claude-sonnet-4-20250514'),
+            model=config.get('model', 'claude-sonnet-4-5-20250929'),
             max_tokens=config.get('max_tokens', 4096),
             system=system_content,
             messages=chat_messages
@@ -525,8 +573,20 @@ def call_gemini_stream(config, messages):
         response = chat.send_message(current_message, stream=True)
         
         for chunk in response:
-            if chunk.text:
-                yield chunk.text
+            try:
+                # Handle thinking models (Gemini 2.5 Pro/Flash)
+                if hasattr(chunk, 'candidates') and chunk.candidates:
+                    for part in chunk.candidates[0].content.parts:
+                        if hasattr(part, 'thought') and part.thought:
+                            # This is a thinking part - show in collapsible block
+                            yield part.text if hasattr(part, 'text') and part.text else ''
+                        elif hasattr(part, 'text') and part.text:
+                            yield part.text
+                elif chunk.text:
+                    yield chunk.text
+            except (ValueError, AttributeError, IndexError):
+                # Skip chunks without valid text
+                continue
     except Exception as e:
         print(f"[Gemini Error] {type(e).__name__}: {e}")
         raise
@@ -535,7 +595,7 @@ def call_provider_stream(config, messages):
     """Route to appropriate provider."""
     provider = config.get('provider', 'openai')
     
-    if provider in ['openai', 'deepseek', 'lmstudio', 'runpod']:
+    if provider in ['openai', 'deepseek', 'lmstudio', 'runpod', 'qwen']:
         yield from call_openai_stream(config, messages)
     elif provider == 'claude':
         yield from call_claude_stream(config, messages)
