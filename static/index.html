@@ -372,6 +372,7 @@
                             <option value="deepseek">DeepSeek</option>
                             <option value="lmstudio">LM Studio (Local)</option>
                             <option value="runpod">RunPod</option>
+                            <option value="qwen">Qwen (Alibaba)</option>
                         </select>
                     </div>
                     <div class="form-group" id="api-key-group">
@@ -791,11 +792,19 @@
         }
 
         function formatMessage(text) {
+            // Preserve <details> thinking blocks from Qwen
+            text = text.replace(/<details><summary>(.*?)<\/summary>/g, '%%DETAILS_OPEN%%$1%%DETAILS_MID%%');
+            text = text.replace(/<\/details>/g, '%%DETAILS_CLOSE%%');
+            
             text = text.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
             text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
             text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
             text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
             text = text.replace(/\n/g, '<br>');
+            
+            // Restore details blocks
+            text = text.replace(/%%DETAILS_OPEN%%(.*?)%%DETAILS_MID%%/g, '<details style="margin:8px 0;padding:8px;background:var(--bg-deep);border-radius:8px;border:1px solid var(--border);"><summary style="cursor:pointer;color:var(--text-muted);font-size:13px;">$1</summary><div style="margin-top:8px;color:var(--text-muted);font-size:13px;white-space:pre-wrap;">');
+            text = text.replace(/%%DETAILS_CLOSE%%/g, '</div></details>');
             return text;
         }
 
@@ -812,10 +821,14 @@
             }
             const msgContainer = document.getElementById('messages');
             if (msgContainer.querySelector('.welcome')) msgContainer.innerHTML = '';
-            msgContainer.innerHTML += `<div class="message user">${formatMessage(escapeHtml(message))}</div>`;
+            msgContainer.innerHTML += `<div class="message user">${formatMessage(escapeHtml(message))}<div class="message-actions"><button class="msg-action-btn" onclick="editLastMessage()">✏️ Edit</button></div></div>`;
             input.value = '';
             autoResize(input);
             msgContainer.scrollTop = msgContainer.scrollHeight;
+            // Remove edit button from previous user messages
+            msgContainer.querySelectorAll('.message.user .message-actions').forEach((el, idx, arr) => { if (idx < arr.length - 1) el.remove(); });
+            // Remove regen button from previous assistant messages
+            msgContainer.querySelectorAll('.message.assistant .message-actions').forEach(el => el.remove());
             const typingId = 'typing-' + Date.now();
             msgContainer.innerHTML += `<div class="message assistant" id="${typingId}"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
             msgContainer.scrollTop = msgContainer.scrollHeight;
@@ -848,6 +861,11 @@
                         .then(data => { if (data.title) { document.getElementById('chat-title').textContent = data.title; loadChats(); } });
                 }
             } catch (e) { document.getElementById(typingId).innerHTML = `<span style="color:var(--accent)">Error: ${escapeHtml(e.message)}</span>`; }
+            // Add regen button to assistant response
+            const typingEl2 = document.getElementById(typingId);
+            if (typingEl2 && !typingEl2.querySelector('.message-actions')) {
+                typingEl2.innerHTML += '<div class="message-actions"><button class="msg-action-btn" onclick="regenerateResponse()">🔄 Regen</button></div>';
+            }
             sendBtn.disabled = false;
         }
 
