@@ -10,6 +10,7 @@
 | **Claude** | Sonnet 4, Opus 4, 3.5 series | Anthropic API |
 | **Gemini** | 2.5 Flash/Pro, 3.x Preview | Google AI |
 | **DeepSeek** | Chat, Reasoner | OpenAI-compatible |
+| **Qwen** | Qwen3.7-max, Qwen3-235b-a22b | Alibaba Cloud |
 | **LM Studio** | Any local model | Your PC as backend |
 | **RunPod** | Cloud GPU models | Serverless inference |
 
