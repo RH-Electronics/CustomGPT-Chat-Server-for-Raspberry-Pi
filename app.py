@@ -266,10 +266,9 @@ PROVIDERS = {
         "models": [
             "qwen3.7-max", "qwen3.7-plus",
             "qwen3-max", "qwen3.5-plus", "qwen3.5-flash",
-            "qwen-plus", "qwen-turbo",
+            "qwen3-235b-a22b-instruct-2507",
             "qwen3-235b-a22b", "qwen3-32b", "qwen3-14b",
-            "qwen3-30b-a3b", "qwen3-8b", "qwen3-4b",
-            "qwq-32b"
+            "qwen3-30b-a3b"
         ]
     }
 }
@@ -445,7 +444,7 @@ def call_openai_stream(config, messages):
         params = {
             "model": model,
             "messages": messages,
-            "temperature": config.get('temperature', 0.7),
+            "temperature": config.get('temperature', 0.8),
             "top_p": config.get('top_p', 1.0),
             "max_tokens": config.get('max_tokens', 4096),
             "presence_penalty": config.get('presence_penalty', 0.0),
@@ -458,7 +457,7 @@ def call_openai_stream(config, messages):
         # Qwen thinking mode control
         if provider == 'qwen':
             # Open-weight models: thinking ON by default
-            if model in ('qwq-32b', 'qwen3-235b-a22b', 'qwen3-32b', 'qwen3-14b', 'qwen3-30b-a3b', 'qwen3-8b', 'qwen3-4b'):
+            if model in ('qwen3-32b', 'qwen3-14b', 'qwen3-30b-a3b'):
                 params["extra_body"] = {"enable_thinking": True}
             else:
                 # Max/Plus/Flash/Turbo: explicitly disable thinking
@@ -551,7 +550,7 @@ def call_gemini_stream(config, messages):
             history.append({"role": "model", "parts": [msg['content']]})
     
     generation_config = {
-        "temperature": config.get('temperature', 0.7),
+        "temperature": config.get('temperature', 0.8),
         "top_p": config.get('top_p', 1.0),
         "max_output_tokens": config.get('max_tokens', 4096),
     }
@@ -572,21 +571,37 @@ def call_gemini_stream(config, messages):
         chat = model.start_chat(history=history)
         response = chat.send_message(current_message, stream=True)
         
+        thinking_started = False
+        answering_started = False
+        
         for chunk in response:
             try:
-                # Handle thinking models (Gemini 2.5 Pro/Flash)
                 if hasattr(chunk, 'candidates') and chunk.candidates:
                     for part in chunk.candidates[0].content.parts:
                         if hasattr(part, 'thought') and part.thought:
-                            # This is a thinking part - show in collapsible block
-                            yield part.text if hasattr(part, 'text') and part.text else ''
+                            # Thinking part - show in collapsible block
+                            if not thinking_started:
+                                thinking_started = True
+                                yield "\n<details><summary>💭 Thinking...</summary>\n\n"
+                            if hasattr(part, 'text') and part.text:
+                                yield part.text
                         elif hasattr(part, 'text') and part.text:
+                            # Regular content
+                            if thinking_started and not answering_started:
+                                answering_started = True
+                                yield "\n\n</details>\n\n"
                             yield part.text
                 elif chunk.text:
+                    if thinking_started and not answering_started:
+                        answering_started = True
+                        yield "\n\n</details>\n\n"
                     yield chunk.text
             except (ValueError, AttributeError, IndexError):
-                # Skip chunks without valid text
                 continue
+        
+        # Close thinking block if not closed
+        if thinking_started and not answering_started:
+            yield "\n\n</details>\n\n"
     except Exception as e:
         print(f"[Gemini Error] {type(e).__name__}: {e}")
         raise
