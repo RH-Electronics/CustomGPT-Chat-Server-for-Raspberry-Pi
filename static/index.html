@@ -792,7 +792,7 @@
         }
 
         function formatMessage(text) {
-            // Preserve <details> thinking blocks from Qwen
+            // Preserve <details> thinking blocks from Qwen/Gemini
             text = text.replace(/<details><summary>(.*?)<\/summary>/g, '%%DETAILS_OPEN%%$1%%DETAILS_MID%%');
             text = text.replace(/<\/details>/g, '%%DETAILS_CLOSE%%');
             
@@ -802,8 +802,8 @@
             text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
             text = text.replace(/\n/g, '<br>');
             
-            // Restore details blocks
-            text = text.replace(/%%DETAILS_OPEN%%(.*?)%%DETAILS_MID%%/g, '<details style="margin:8px 0;padding:8px;background:var(--bg-deep);border-radius:8px;border:1px solid var(--border);"><summary style="cursor:pointer;color:var(--text-muted);font-size:13px;">$1</summary><div style="margin-top:8px;color:var(--text-muted);font-size:13px;white-space:pre-wrap;">');
+            // Restore details blocks (open by default so thinking visible during streaming)
+            text = text.replace(/%%DETAILS_OPEN%%(.*?)%%DETAILS_MID%%/g, '<details open style="margin:8px 0;padding:8px;background:var(--bg-deep);border-radius:8px;border:1px solid var(--border);"><summary style="cursor:pointer;color:var(--accent);font-size:13px;">$1</summary><div style="margin-top:8px;color:var(--text-muted);font-size:13px;white-space:pre-wrap;">');
             text = text.replace(/%%DETAILS_CLOSE%%/g, '</div></details>');
             return text;
         }
