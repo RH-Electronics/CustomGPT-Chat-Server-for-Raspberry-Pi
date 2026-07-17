@@ -221,11 +221,11 @@ PROVIDERS = {
         "models": [
             # Standard models
             "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", 
-            "gpt-4o-2024-11-20", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo",
+            "gpt-4o-2024-11-20", 
             # Reasoning models (o-series)
             "o4-mini", "o3", "o3-mini",
             # GPT-5.x reasoning models
-            "gpt-5.4-2026-03-05", "gpt-5.4-mini-2026-03-17"
+            "gpt-5.4-2026-03-05", "gpt-5.4-mini-2026-03-17", "gpt-5.5-2026-04-23", "chat-latest",
         ]
     },
     "claude": {
